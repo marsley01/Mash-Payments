@@ -8,9 +8,20 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-jakarta)", "sans-serif"],
+      },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        background: "#0A0A0A",
+        foreground: "#ededed",
+        accent: "#00C896",
+        "accent-dark": "#00A87A",
+        muted: "#888888",
+        "surface-dark": "#141414",
+        "surface-light": "#1E1E1E",
+        success: "#00C896",
+        warning: "#F5A623",
+        danger: "#FF4D4D",
       },
     },
   },
