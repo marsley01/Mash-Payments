@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 import { sendSTKPush } from "@/lib/daraja";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const secret = request.headers.get("x-api-secret");
@@ -20,6 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabase = getSupabase();
     const { data: config, error: configError } = await supabase
       .from("daraja_config")
       .select("*")

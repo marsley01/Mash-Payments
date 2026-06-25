@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const supabase = getSupabase();
   const { data, error } = await supabase
     .from("daraja_config")
     .select("*")
@@ -35,6 +38,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const supabase = getSupabase();
     const { error } = await supabase.from("daraja_config").upsert(
       {
         consumer_key,

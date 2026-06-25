@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +21,7 @@ export async function POST(request: NextRequest) {
       );
       const mpesaReceipt = receiptItem?.Value || null;
 
+      const supabase = getSupabase();
       await supabase
         .from("transactions")
         .update({
@@ -27,6 +30,7 @@ export async function POST(request: NextRequest) {
         })
         .eq("checkout_request_id", CheckoutRequestID);
     } else {
+      const supabase = getSupabase();
       await supabase
         .from("transactions")
         .update({ status: "FAILED" })
