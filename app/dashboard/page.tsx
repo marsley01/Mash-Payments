@@ -150,16 +150,10 @@ export default function DashboardPage() {
               <button
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition text-left"
+                className="btn-apple w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition text-left"
                 style={{
                   background: isActive ? "var(--toggle-active)" : "transparent",
                   color: isActive ? "var(--text-1)" : "var(--text-2)",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "var(--toggle-bg)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "transparent";
                 }}
               >
                 <i className={`ti ${t.icon}`} style={{ fontSize: 16 }}></i>
@@ -218,12 +212,11 @@ export default function DashboardPage() {
         <div className="px-2 py-3 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-full text-[11px] transition"
+            className="btn-apple w-full flex items-center gap-2 px-3 py-2 rounded-full text-[11px]"
             style={{
               background: "var(--toggle-bg)",
               border: "0.5px solid var(--border-input)",
               color: "var(--text-2)",
-              cursor: "pointer",
             }}
           >
             {theme === "dark"
@@ -233,7 +226,7 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition"
+            className="btn-apple w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
             style={{ color: "var(--text-2)" }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "#FF4444"; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-2)"; }}
@@ -257,10 +250,8 @@ export default function DashboardPage() {
           <KeysTab
             accessToken={accessToken}
             credentials={credentials}
-            onSaved={() => {
-              fetchAll();
-              setTimeout(() => setActiveTab("install"), 1500);
-            }}
+            onSaved={() => fetchAll()}
+            onGoToInstall={() => setActiveTab("install")}
           />
         )}
         {activeTab === "install" && (
@@ -379,7 +370,7 @@ function OverviewTab({
           </div>
           <button
             onClick={() => onGoTo(nextStep!.tab)}
-            className="px-4 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110"
+            className="btn-apple px-4 py-2 rounded-lg text-sm font-semibold"
             style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
           >
             Go to {nextStep.tab === "keys" ? "API Keys" : "Install"}
@@ -435,10 +426,12 @@ function KeysTab({
   accessToken,
   credentials,
   onSaved,
+  onGoToInstall,
 }: {
   accessToken: string;
   credentials: Credentials | null;
   onSaved: () => void;
+  onGoToInstall: () => void;
 }) {
   const [consumerKey, setConsumerKey] = useState("");
   const [consumerSecret, setConsumerSecret] = useState("");
@@ -500,7 +493,7 @@ function KeysTab({
     setSaving(false);
 
     if (data.success) {
-      setMessage("Gateway activated! Test your push below before proceeding.");
+      setMessage("Gateway activated successfully");
       setMsgType("success");
       setKeysJustSaved(true);
       onSaved();
@@ -579,7 +572,7 @@ function KeysTab({
             <button
               type="button"
               onClick={() => setEnvironment("sandbox")}
-              className="flex-1 py-2 text-sm font-medium rounded-lg transition"
+              className="btn-apple flex-1 py-2 text-sm font-medium rounded-lg"
               style={{
                 background: environment === "sandbox" ? "var(--accent)" : "transparent",
                 color: environment === "sandbox" ? "var(--accent-btn-text)" : "var(--text-2)",
@@ -590,7 +583,7 @@ function KeysTab({
             <button
               type="button"
               onClick={() => setEnvironment("production")}
-              className="flex-1 py-2 text-sm font-medium rounded-lg transition"
+              className="btn-apple flex-1 py-2 text-sm font-medium rounded-lg"
               style={{
                 background: environment === "production" ? "var(--accent)" : "transparent",
                 color: environment === "production" ? "var(--accent-btn-text)" : "var(--text-2)",
@@ -657,103 +650,153 @@ function KeysTab({
           </div>
         )}
 
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-6 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50"
-            style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
-          >
-            {saving ? "Saving..." : "Save & Activate Gateway"}
-          </button>
-          {message && (
-            <span className="text-sm" style={{ color: msgType === "success" ? "var(--accent)" : "#FF4444" }}>
-              {message}
-            </span>
-          )}
-        </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-apple px-6 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: "var(--accent)", color: "var(--accent-btn-text)", minWidth: 180 }}
+            >
+              {saving ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                  </svg>
+                  Saving...
+                </span>
+              ) : "Save & Activate Gateway"}
+            </button>
+            {message && (
+              <span className="text-sm animate-fade-up" style={{ color: msgType === "success" ? "var(--accent)" : "#FF4444" }}>
+                {message}
+              </span>
+            )}
+          </div>
       </form>
 
-      {(keysJustSaved || credentials?.is_configured) && (
-        <div
-          className="rounded-xl border p-5 space-y-4"
-          style={{
-            background: "var(--sidebar)",
-            borderColor: "var(--accent)",
-            boxShadow: "0 0 0 1px var(--accent)20",
-          }}
-        >
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span style={{ fontSize: 18 }}>📱</span>
-              <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>
-                Test Your Gateway Before You Continue
+      {(keysJustSaved || (credentials?.is_configured && !keysJustSaved)) && (
+        <div className={`rounded-xl p-6 space-y-5 ${keysJustSaved ? "animate-scale-in" : ""}`} style={{ background: "var(--sidebar)", border: "1px solid var(--accent)" }}>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(0,200,150,0.12)" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path className={keysJustSaved ? "success-check" : ""} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-base font-semibold" style={{ color: "var(--text-1)" }}>
+                {keysJustSaved ? "Gateway Activated" : "Already Configured"}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>
+                {keysJustSaved ? "Your Daraja keys are saved and ready to go." : "Your gateway is already active. You can test it or proceed to install."}
               </p>
             </div>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--text-2)" }}>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() => {
+                const el = document.getElementById("test-section");
+                el?.classList.toggle("hidden");
+              }}
+              className="btn-apple flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: "var(--toggle-bg)", color: "var(--text-1)", border: "0.5px solid var(--border-input)" }}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 7h16M7 12h10M10 17h4"/>
+                </svg>
+                Test Your Integration
+              </span>
+            </button>
+            <button
+              onClick={onGoToInstall}
+              className="btn-apple flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
+            >
+              <span className="flex items-center justify-center gap-2">
+                Continue to Install
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 6l6 6-6 6"/>
+                </svg>
+              </span>
+            </button>
+          </div>
+
+          <div id="test-section" className="hidden space-y-4 animate-fade-up" style={{ borderTop: "0.5px solid var(--border)", paddingTop: 16 }}>
+            <p className="text-xs" style={{ color: "var(--text-2)" }}>
               Enter your phone number. We&apos;ll send a real KES 1 STK push prompt to confirm
               your Daraja keys are working correctly.
             </p>
-          </div>
-
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setTesting(true);
-              setTestResult(null);
-              try {
-                const res = await fetch("/api/test-push", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
-                  body: JSON.stringify({ phone: testPhone, amount: 1 }),
-                });
-                const data = await res.json();
-                setTestResult(
-                  data.success
-                    ? { ok: true, message: "✓ STK push sent! Check your phone for the M-PESA prompt." }
-                    : { ok: false, message: data.error || data.message || "Push failed — check your Daraja keys" }
-                );
-              } catch {
-                setTestResult({ ok: false, message: "Network error. Try again." });
-              } finally {
-                setTesting(false);
-              }
-            }}
-            className="flex items-center gap-3"
-          >
-            <input
-              type="text"
-              placeholder="e.g. 0712 345 678"
-              value={testPhone}
-              onChange={(e) => setTestPhone(e.target.value)}
-              required
-              className="flex-1 px-3 py-2.5 rounded-lg border text-sm outline-none transition"
-              style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
-            />
-            <button
-              type="submit"
-              disabled={testing}
-              className="px-5 py-2.5 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50 shrink-0"
-              style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
-            >
-              {testing ? "Sending..." : "Send Test Push"}
-            </button>
-          </form>
-
-          {testResult && (
-            <div
-              className="rounded-lg px-4 py-3 flex items-start gap-2"
-              style={{
-                background: testResult.ok ? "rgba(0,200,150,0.08)" : "rgba(255,68,68,0.08)",
-                border: `1px solid ${testResult.ok ? "var(--accent)" : "#FF4444"}`,
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setTesting(true);
+                setTestResult(null);
+                try {
+                  const res = await fetch("/api/test-push", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+                    body: JSON.stringify({ phone: testPhone, amount: 1 }),
+                  });
+                  const data = await res.json();
+                  setTestResult(
+                    data.success
+                      ? { ok: true, message: "STK push sent! Check your phone for the M-PESA prompt." }
+                      : { ok: false, message: data.error || data.message || "Push failed — check your Daraja keys" }
+                  );
+                } catch {
+                  setTestResult({ ok: false, message: "Network error. Try again." });
+                } finally {
+                  setTesting(false);
+                }
               }}
+              className="flex items-center gap-3"
             >
-              <span style={{ fontSize: 15 }}>{testResult.ok ? "✅" : "❌"}</span>
-              <p className="text-sm font-medium" style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}>
-                {testResult.message}
-              </p>
-            </div>
-          )}
+              <input
+                type="text"
+                placeholder="e.g. 0712 345 678"
+                value={testPhone}
+                onChange={(e) => setTestPhone(e.target.value)}
+                required
+                className="flex-1 px-3 py-2.5 rounded-lg border text-sm outline-none transition"
+                style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+              />
+              <button
+                type="submit"
+                disabled={testing}
+                className="btn-apple px-5 py-2.5 rounded-xl text-sm font-semibold shrink-0"
+                style={{ background: "var(--accent)", color: "var(--accent-btn-text)", minWidth: 140 }}
+              >
+                {testing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                    </svg>
+                    Sending...
+                  </span>
+                ) : "Send Test Push"}
+              </button>
+            </form>
+
+            {testResult && (
+              <div className="animate-fade-up">
+                <div
+                  className="rounded-xl px-4 py-3 flex items-start gap-2"
+                  style={{
+                    background: testResult.ok ? "rgba(0,200,150,0.08)" : "rgba(255,68,68,0.08)",
+                    border: `1px solid ${testResult.ok ? "var(--accent)" : "#FF4444"}`,
+                  }}
+                >
+                  <span style={{ fontSize: 15 }}>{testResult.ok ? "✓" : "✗"}</span>
+                  <p className="text-sm font-medium" style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}>
+                    {testResult.message}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -837,7 +880,7 @@ function InstallTab({
         </code>
         <button
           onClick={handleCopy}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition hover:brightness-110"
+          className="btn-apple px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0"
           style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
         >
           {copied ? "Copied!" : "Copy"}
@@ -855,7 +898,7 @@ function InstallTab({
           <button
             key={p}
             onClick={() => setPlatform(p)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition"
+            className="btn-apple px-3 py-1.5 rounded-lg text-xs font-medium"
             style={{
               background: platform === p ? "var(--accent)" : "transparent",
               color: platform === p ? "var(--accent-btn-text)" : "var(--text-2)",
@@ -902,10 +945,18 @@ function InstallTab({
         <button
           type="submit"
           disabled={sending}
-          className="px-5 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50 shrink-0"
+          className="btn-apple px-5 py-2 rounded-lg text-sm font-semibold shrink-0"
           style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
         >
-          {sending ? "Sending..." : "Send Test Push"}
+          {sending ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+              </svg>
+              Sending...
+            </span>
+          ) : "Send Test Push"}
         </button>
       </form>
 
@@ -1174,7 +1225,7 @@ function TransactionsTab({
           </p>
           <button
             onClick={onGoToInstall}
-            className="mt-4 px-4 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110"
+            className="btn-apple mt-4 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
           >
             Go to Install

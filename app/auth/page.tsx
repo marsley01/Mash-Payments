@@ -89,7 +89,7 @@ export default function AuthPage() {
         >
           <button
             onClick={() => { setMode("signup"); setError(""); }}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition`}
+            className={`btn-apple flex-1 py-2 text-sm font-medium rounded-lg`}
             style={{
               background: mode === "signup" ? "var(--accent)" : "transparent",
               color: mode === "signup" ? "var(--accent-btn-text)" : "var(--text-2)",
@@ -99,7 +99,7 @@ export default function AuthPage() {
           </button>
           <button
             onClick={() => { setMode("login"); setError(""); }}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition`}
+            className={`btn-apple flex-1 py-2 text-sm font-medium rounded-lg`}
             style={{
               background: mode === "login" ? "var(--accent)" : "transparent",
               color: mode === "login" ? "var(--accent-btn-text)" : "var(--text-2)",
@@ -178,10 +178,18 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50"
+              className="btn-apple w-full py-2.5 rounded-lg text-sm font-semibold"
               style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
             >
-              {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                  </svg>
+                  Please wait...
+                </span>
+              ) : mode === "signup" ? "Create Account" : "Sign In"}
             </button>
           </form>
         </div>
