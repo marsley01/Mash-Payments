@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .limit(1) as unknown as Promise<{ data: any[] | null; error: unknown }>);
 
-    const finalSecret = consumer_secret || (existing?.[0]?.consumer_secret ?? "");
+    const existingSecret = existing?.[0]?.consumer_secret ?? "";
+    const finalSecret = consumer_secret || existingSecret;
 
     if (!finalSecret) {
       return NextResponse.json(
@@ -90,36 +91,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete all stale rows for this user, then insert fresh
-    await (supabase
+    const payload = {
+      consumer_key,
+      consumer_secret: finalSecret,
+      passkey,
+      shortcode,
+      environment: environment || "sandbox",
+      callback_url,
+      is_configured: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Upsert — delete all then insert one clean row
+    const { error: delErr } = await (supabase
       .from(TABLE)
       .delete()
-      .eq("user_id", user.id) as never as unknown as Promise<{ error: unknown }>);
+      .eq("user_id", user.id) as unknown as Promise<{ error: unknown }>);
+    if (delErr) throw delErr;
 
-    const { error: insertErr } = await (supabase
+    const { error: insErr } = await (supabase
       .from(TABLE)
-      .insert({
-        user_id: user.id,
-        consumer_key,
-        consumer_secret: finalSecret,
-        passkey,
-        shortcode,
-        environment: environment || "sandbox",
-        callback_url,
-        is_configured: true,
-        updated_at: new Date().toISOString(),
-      } as never) as unknown as Promise<{ error: unknown }>);
-    if (insertErr) throw insertErr;
+      .insert({ user_id: user.id, ...payload } as never) as unknown as Promise<{ error: unknown }>);
+    if (insErr) {
+      // If insert fails, re-create a minimal row so the user isn't orphaned
+      await (supabase
+        .from(TABLE)
+        .insert({ user_id: user.id, is_configured: false } as never) as unknown as Promise<{ error: unknown }>);
+      throw insErr;
+    }
 
-    const { error: profileErr } = await (supabase
+    const { error: profErr } = await (supabase
       .from("profiles")
       .update({ setup_step: 3 } as never)
       .eq("id", user.id)
       .lt("setup_step", 3) as unknown as Promise<{ error: unknown }>);
-    if (profileErr) throw profileErr;
+    if (profErr) throw profErr;
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }
