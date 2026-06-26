@@ -23,7 +23,18 @@ export function getSupabaseAdmin() {
 }
 
 export function getBrowserSupabase() {
-  const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const supabaseKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  // NEXT_PUBLIC_ vars MUST be accessed as literal strings for Next.js
+  // to inline them at build time. Dynamic access (process.env[name])
+  // returns undefined on the client side.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. Check your .env.local file."
+    );
+  }
+
   return createClient(supabaseUrl, supabaseKey);
 }
+

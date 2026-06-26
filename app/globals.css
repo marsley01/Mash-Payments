@@ -2,13 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg:             #0A0A0A;
+  --sidebar:        #111111;
+  --card:           #1A1A1A;
+  --border:         rgba(255,255,255,0.07);
+  --border-input:   rgba(255,255,255,0.10);
+  --text-1:         #FFFFFF;
+  --text-2:         rgba(255,255,255,0.55);
+  --text-3:         rgba(255,255,255,0.28);
+  --accent:         #00C896;
+  --accent-btn-text:#0A0A0A;
+  --toggle-bg:      #1A1A1A;
+  --toggle-active:  #1F1F1F;
+  --input-bg:       #1A1A1A;
+}
+
+[data-theme="light"] {
+  --bg:             #F5F5F3;
+  --sidebar:        #FFFFFF;
+  --card:           #FFFFFF;
+  --border:         rgba(0,0,0,0.08);
+  --border-input:   rgba(0,0,0,0.12);
+  --text-1:         #0A0A0A;
+  --text-2:         rgba(0,0,0,0.55);
+  --text-3:         rgba(0,0,0,0.35);
+  --accent:         #00A878;
+  --accent-btn-text:#FFFFFF;
+  --toggle-bg:      #EBEBEA;
+  --toggle-active:  #FFFFFF;
+  --input-bg:       #FFFFFF;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
-  background: #0A0A0A;
-  color: #ededed;
+  background: var(--bg);
+  color: var(--text-1);
   font-family: "Plus Jakarta Sans", sans-serif;
 }
 
@@ -23,14 +55,19 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #141414;
+  background: var(--sidebar);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--border-input);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--text-3);
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent) !important;
 }

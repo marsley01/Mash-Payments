@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { useTheme } from "@/lib/theme-context";
 
 type Tab = "overview" | "keys" | "install" | "transactions";
 
@@ -44,6 +45,7 @@ const tabs: { key: Tab; label: string; icon: string }[] = [
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -117,7 +119,7 @@ export default function DashboardPage() {
   }
 
   if (!sessionChecked) {
-    return <div className="min-h-screen" style={{ background: "#0A0A0A" }} />;
+    return <div className="min-h-screen" style={{ background: "var(--bg)" }} />;
   }
 
   const setupStep = profile?.setup_step || 1;
@@ -125,18 +127,18 @@ export default function DashboardPage() {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen flex" style={{ background: "#0A0A0A" }}>
+    <div className="min-h-screen flex" style={{ background: "var(--bg)" }}>
       <aside
         className="flex flex-col shrink-0"
         style={{
           width: 190,
-          background: "#111111",
-          borderRight: "1px solid rgba(255,255,255,0.07)",
+          background: "var(--sidebar)",
+          borderRight: "1px solid var(--border)",
         }}
       >
-        <div className="px-4 py-5 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-          <h1 className="text-base font-bold tracking-tight">
-            Mash <span style={{ color: "#00C896" }}>Payments</span>
+        <div className="px-4 py-5 border-b" style={{ borderColor: "var(--border)" }}>
+          <h1 className="text-base font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
+            Mash <span style={{ color: "var(--accent)" }}>Payments</span>
           </h1>
         </div>
 
@@ -150,11 +152,11 @@ export default function DashboardPage() {
                 onClick={() => setActiveTab(t.key)}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition text-left"
                 style={{
-                  background: isActive ? "rgba(255,255,255,0.05)" : "transparent",
-                  color: isActive ? "#ededed" : "#888",
+                  background: isActive ? "var(--toggle-active)" : "transparent",
+                  color: isActive ? "var(--text-1)" : "var(--text-2)",
                 }}
                 onMouseEnter={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                  if (!isActive) e.currentTarget.style.background = "var(--toggle-bg)";
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) e.currentTarget.style.background = "transparent";
@@ -165,7 +167,7 @@ export default function DashboardPage() {
                 {showDot && (
                   <span
                     className="w-2 h-2 rounded-full"
-                    style={{ background: "#00C896" }}
+                    style={{ background: "var(--accent)" }}
                   />
                 )}
               </button>
@@ -173,8 +175,8 @@ export default function DashboardPage() {
           })}
         </nav>
 
-        <div className="px-4 py-3 border-t space-y-2" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "#888", letterSpacing: "0.12em" }}>
+        <div className="px-4 py-3 border-t space-y-2" style={{ borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>
             Setup Progress
           </p>
           {[
@@ -187,15 +189,15 @@ export default function DashboardPage() {
               <div
                 className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
                 style={{
-                  background: step.done ? "#00C896" : "transparent",
-                  border: step.done ? "none" : "1.5px solid #555",
+                  background: step.done ? "var(--accent)" : "transparent",
+                  border: step.done ? "none" : "1.5px solid var(--text-3)",
                 }}
               >
                 {step.done ? (
                   <svg width="8" height="8" viewBox="0 0 12 12" fill="none">
                     <path
                       d="M2 6L5 9L10 3"
-                      stroke="#0A0A0A"
+                      stroke="var(--accent-btn-text)"
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -205,7 +207,7 @@ export default function DashboardPage() {
               </div>
               <span
                 className="text-[11px]"
-                style={{ color: step.done ? "#ededed" : "#555" }}
+                style={{ color: step.done ? "var(--text-1)" : "var(--text-3)" }}
               >
                 {step.label}
               </span>
@@ -213,10 +215,28 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div className="px-2 py-3 border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+        <div className="px-2 py-3 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-full text-[11px] transition"
+            style={{
+              background: "var(--toggle-bg)",
+              border: "0.5px solid var(--border-input)",
+              color: "var(--text-2)",
+              cursor: "pointer",
+            }}
+          >
+            {theme === "dark"
+              ? <><i className="ti ti-sun" style={{ fontSize: 14 }} /> Light mode</>
+              : <><i className="ti ti-moon" style={{ fontSize: 14 }} /> Dark mode</>
+            }
+          </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[#888] hover:text-[#FF4444] transition hover:bg-white/[0.03]"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition"
+            style={{ color: "var(--text-2)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#FF4444"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-2)"; }}
           >
             <i className="ti ti-settings" style={{ fontSize: 16 }}></i>
             <span>Settings / Logout</span>
@@ -269,7 +289,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       <div className="w-[2px] h-4 shrink-0" style={{ background: "#00C896" }} />
       <span
         className="text-[10px] font-semibold uppercase tracking-wider"
-        style={{ color: "#888", letterSpacing: "0.12em" }}
+        style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}
       >
         {children}
       </span>
@@ -281,10 +301,10 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   return (
     <div
       className="rounded-xl border p-4"
-      style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
+      style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
     >
-      <p className="text-xs text-[#888] mb-1">{label}</p>
-      <p className="text-xl font-bold" style={{ color: color || "#ededed" }}>
+      <p className="text-xs mb-1" style={{ color: "var(--text-2)" }}>{label}</p>
+      <p className="text-xl font-bold" style={{ color: color || "var(--text-1)" }}>
         {value}
       </p>
     </div>
@@ -301,7 +321,7 @@ function StatusDot({ status }: { status: string }) {
     <div className="flex items-center gap-2">
       <span
         className="w-2 h-2 rounded-full shrink-0"
-        style={{ background: colors[status] || "#888" }}
+        style={{ background: colors[status] || "var(--text-2)" }}
       />
       <span className="text-sm">{status}</span>
     </div>
@@ -337,11 +357,11 @@ function OverviewTab({
 
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="Total Transactions" value={String(totalCount)} />
-        <StatCard label="Successful Payments" value={String(successfulCount)} color="#00C896" />
+        <StatCard label="Successful Payments" value={String(successfulCount)} color="var(--accent)" />
         <StatCard
           label="Total Volume"
           value={`KES ${totalVolume.toLocaleString()}`}
-          color="#00C896"
+          color="var(--accent)"
         />
       </div>
 
@@ -349,18 +369,18 @@ function OverviewTab({
         <div
           className="rounded-xl p-4 flex items-center justify-between"
           style={{
-            background: "#111111",
-            borderLeft: "3px solid #00C896",
+            background: "var(--sidebar)",
+            borderLeft: "3px solid var(--accent)",
           }}
         >
           <div>
-            <p className="text-sm font-semibold">You&apos;re almost ready to accept payments</p>
-            <p className="text-xs text-[#888] mt-0.5">Next: {nextStep.label}</p>
+            <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>You&apos;re almost ready to accept payments</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>Next: {nextStep.label}</p>
           </div>
           <button
             onClick={() => onGoTo(nextStep!.tab)}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-black transition hover:brightness-110"
-            style={{ background: "#00C896" }}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110"
+            style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
           >
             Go to {nextStep.tab === "keys" ? "API Keys" : "Install"}
           </button>
@@ -370,17 +390,17 @@ function OverviewTab({
       {setupStep >= 4 && (
         <div
           className="rounded-xl border"
-          style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
         >
-          <div className="px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-            <p className="text-sm font-semibold">Recent Transactions</p>
+          <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Recent Transactions</p>
           </div>
           {recent.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[#888]">No transactions yet</div>
+            <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-2)" }}>No transactions yet</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[#888] text-xs" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <tr className="text-xs" style={{ color: "var(--text-2)", borderColor: "var(--border)" }}>
                   <th className="text-left px-4 py-2 font-medium">Time</th>
                   <th className="text-left px-4 py-2 font-medium">Phone</th>
                   <th className="text-right px-4 py-2 font-medium">Amount</th>
@@ -389,8 +409,8 @@ function OverviewTab({
               </thead>
               <tbody>
                 {recent.map((tx) => (
-                  <tr key={tx.id} className="border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
-                    <td className="px-4 py-2.5 text-xs text-[#888]">
+                  <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                    <td className="px-4 py-2.5 text-xs" style={{ color: "var(--text-2)" }}>
                       {new Date(tx.created_at).toLocaleString()}
                     </td>
                     <td className="px-4 py-2.5">{tx.phone}</td>
@@ -420,54 +440,66 @@ function KeysTab({
   credentials: Credentials | null;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState({
-    consumer_key: "",
-    consumer_secret: "",
-    passkey: "",
-    shortcode: "",
-    environment: "sandbox",
-    callback_url: "",
-  });
+  const [consumerKey, setConsumerKey] = useState("");
+  const [consumerSecret, setConsumerSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
+  const [environment, setEnvironment] = useState<"sandbox" | "production">("sandbox");
+  const [shortcode, setShortcode] = useState("");
+  const [passkey, setPasskey] = useState("");
   const [showPasskey, setShowPasskey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [msgType, setMsgType] = useState<"success" | "error">("success");
+  const [testPhone, setTestPhone] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (credentials) {
-      setForm({
-        consumer_key: credentials.consumer_key || "",
-        consumer_secret: "",
-        passkey: credentials.passkey || "",
-        shortcode: credentials.shortcode || "",
-        environment: credentials.environment || "sandbox",
-        callback_url: credentials.callback_url || "",
-      });
+      setConsumerKey(credentials.consumer_key || "");
+      setEnvironment((credentials.environment as "sandbox" | "production") || "sandbox");
+      if (credentials.environment === "production") {
+        setShortcode(credentials.shortcode || "");
+        setPasskey(credentials.passkey || "");
+      }
     }
   }, [credentials]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.consumer_secret && credentials) {
-      setMessage("Enter your Consumer Secret to save.");
+    if (!consumerKey || (!consumerSecret && !credentials)) {
+      setMessage("Consumer Key and Secret are required.");
+      setMsgType("error");
+      return;
+    }
+    if (environment === "production" && (!shortcode || !passkey)) {
+      setMessage("Shortcode and Passkey are required for live mode.");
       setMsgType("error");
       return;
     }
     setSaving(true);
     setMessage("");
 
+    const callbackUrl = window.location.origin + "/api/callback";
+
     const res = await fetch("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        consumer_key: consumerKey,
+        consumer_secret: consumerSecret || undefined,
+        environment,
+        shortcode: environment === "sandbox" ? "174379" : shortcode,
+        passkey: environment === "sandbox" ? "__SANDBOX__" : passkey,
+        callback_url: callbackUrl,
+      }),
     });
 
     const data = await res.json();
     setSaving(false);
 
     if (data.success) {
-      setMessage("Keys saved. Your payment gateway is active.");
+      setMessage("Gateway activated. Head to Install to get your code snippet.");
       setMsgType("success");
       onSaved();
     } else {
@@ -480,56 +512,57 @@ function KeysTab({
     <div className="max-w-2xl space-y-6">
       <SectionLabel>YOUR DARAJA CREDENTIALS</SectionLabel>
 
-      <p className="text-sm text-[#888] leading-relaxed">
-        These are your M-PESA API keys from Safaricom&apos;s developer portal.
-        You only need to enter these once. We store them securely and use
-        them every time someone pays through your website.
+      <p className="text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>
+        Two things from Safaricom&apos;s developer portal — that&apos;s it.
+        We handle everything else automatically.
       </p>
 
       <a
         href="https://developer.safaricom.co.ke"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-block text-sm text-[#00C896] hover:underline"
+        className="inline-block text-sm hover:underline"
+        style={{ color: "var(--accent)" }}
       >
         Don&apos;t have keys yet? &rarr; Get them free from developer.safaricom.co.ke
       </a>
 
       <form onSubmit={handleSave} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium mb-1">Consumer Key</label>
-          <p className="text-[11px] text-[#888] mb-1.5">
-            Found in your Safaricom Daraja app under &quot;Consumer Key&quot;
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Consumer Key</label>
+          <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
+            From your Daraja app dashboard
           </p>
           <input
             type="text"
-            value={form.consumer_key}
-            onChange={(e) => setForm({ ...form, consumer_key: e.target.value })}
+            value={consumerKey}
+            onChange={(e) => setConsumerKey(e.target.value)}
             required
-            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-            style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+            style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Consumer Secret</label>
-          <p className="text-[11px] text-[#888] mb-1.5">
-            Keep this private. It&apos;s like a password for your payment gateway.
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Consumer Secret</label>
+          <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
+            Treat this like a password — keep it private
           </p>
           <div className="relative">
             <input
               type={showSecret ? "text" : "password"}
-              value={form.consumer_secret}
-              onChange={(e) => setForm({ ...form, consumer_secret: e.target.value })}
+              value={consumerSecret}
+              onChange={(e) => setConsumerSecret(e.target.value)}
               required={!credentials}
               placeholder={credentials ? "Leave blank to keep current" : ""}
-              className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-              style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+              className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+              style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
             />
             <button
               type="button"
               onClick={() => setShowSecret(!showSecret)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-white text-xs"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs transition"
+              style={{ color: "var(--text-2)" }}
             >
               {showSecret ? "Hide" : "Show"}
             </button>
@@ -537,90 +570,176 @@ function KeysTab({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Passkey</label>
-          <p className="text-[11px] text-[#888] mb-1.5">
-            Provided by Safaricom when you create your Daraja app
-          </p>
-          <div className="relative">
-            <input
-              type={showPasskey ? "text" : "password"}
-              value={form.passkey}
-              onChange={(e) => setForm({ ...form, passkey: e.target.value })}
-              required
-              className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-              style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
-            />
+          <div
+            className="rounded-xl border p-1 flex"
+            style={{ background: "var(--toggle-bg)", borderColor: "var(--border)" }}
+          >
             <button
               type="button"
-              onClick={() => setShowPasskey(!showPasskey)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-white text-xs"
+              onClick={() => setEnvironment("sandbox")}
+              className="flex-1 py-2 text-sm font-medium rounded-lg transition"
+              style={{
+                background: environment === "sandbox" ? "var(--accent)" : "transparent",
+                color: environment === "sandbox" ? "var(--accent-btn-text)" : "var(--text-2)",
+              }}
             >
-              {showPasskey ? "Hide" : "Show"}
+              🧪 Sandbox — Testing
+            </button>
+            <button
+              type="button"
+              onClick={() => setEnvironment("production")}
+              className="flex-1 py-2 text-sm font-medium rounded-lg transition"
+              style={{
+                background: environment === "production" ? "var(--accent)" : "transparent",
+                color: environment === "production" ? "var(--accent-btn-text)" : "var(--text-2)",
+              }}
+            >
+              🚀 Live — Real Payments
             </button>
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Shortcode (Paybill or Till Number)</label>
-          <p className="text-[11px] text-[#888] mb-1.5">
-            Your M-PESA Paybill or Buy Goods Till number
-          </p>
-          <input
-            type="text"
-            value={form.shortcode}
-            onChange={(e) => setForm({ ...form, shortcode: e.target.value })}
-            required
-            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-            style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Environment</label>
-          <select
-            value={form.environment}
-            onChange={(e) => setForm({ ...form, environment: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-            style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+        {environment === "sandbox" && (
+          <div
+            className="rounded-xl border p-4 text-sm leading-relaxed"
+            style={{ background: "var(--sidebar)", borderColor: "var(--border)", color: "var(--text-2)" }}
           >
-            <option value="sandbox">Sandbox &mdash; Use this for testing. No real money moves.</option>
-            <option value="production">Production &mdash; Use this when you&apos;re ready to accept real payments.</option>
-          </select>
-        </div>
+            Sandbox uses Safaricom&apos;s test environment. No real money moves.
+            Shortcode and Passkey are set automatically for you.
+          </div>
+        )}
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Callback URL</label>
-          <p className="text-[11px] text-[#888] mb-1.5">
-            Safaricom will send payment confirmations here. Must be a public HTTPS URL.
-            Example: https://yourapp.vercel.app/api/callback
-          </p>
-          <input
-            type="url"
-            value={form.callback_url}
-            onChange={(e) => setForm({ ...form, callback_url: e.target.value })}
-            required
-            placeholder="https://your-deployed-url.vercel.app/api/callback"
-            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-            style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
-          />
-        </div>
+        {environment === "production" && (
+          <div
+            className="rounded-xl border p-5 space-y-4"
+            style={{ background: "var(--sidebar)", borderColor: "var(--accent)" }}
+          >
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Shortcode</label>
+              <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
+                Your M-PESA Paybill or Buy Goods Till number
+              </p>
+              <input
+                type="text"
+                value={shortcode}
+                onChange={(e) => setShortcode(e.target.value)}
+                required
+                className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+                style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Passkey</label>
+              <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
+                Provided by Safaricom with your production credentials
+              </p>
+              <div className="relative">
+                <input
+                  type={showPasskey ? "text" : "password"}
+                  value={passkey}
+                  onChange={(e) => setPasskey(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+                  style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasskey(!showPasskey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs transition"
+                  style={{ color: "var(--text-2)" }}
+                >
+                  {showPasskey ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <button
             type="submit"
             disabled={saving}
-            className="px-6 py-2 rounded-lg text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-50"
-            style={{ background: "#00C896" }}
+            className="px-6 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50"
+            style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
           >
-            {saving ? "Saving..." : "Save My Keys"}
+            {saving ? "Saving..." : "Save & Activate Gateway"}
           </button>
           {message && (
-            <span className={`text-sm ${msgType === "success" ? "text-[#00C896]" : "text-[#FF4444]"}`}>
+            <span className="text-sm" style={{ color: msgType === "success" ? "var(--accent)" : "#FF4444" }}>
               {message}
             </span>
           )}
         </div>
       </form>
+
+      {credentials?.is_configured && (
+        <div
+          className="rounded-xl border p-5 space-y-4"
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-[2px] h-4 shrink-0" style={{ background: "#00C896" }} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>
+              QUICK TEST — SEND A KES 1 PUSH
+            </span>
+          </div>
+
+          <p className="text-sm" style={{ color: "var(--text-2)" }}>
+            Enter your phone number to confirm your gateway is working.
+            A KES 1 prompt will appear on your phone.
+          </p>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setTesting(true);
+              setTestResult(null);
+              try {
+                const res = await fetch("/api/test-push", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+                  body: JSON.stringify({ phone: testPhone, amount: 1 }),
+                });
+                const data = await res.json();
+                setTestResult(
+                  data.success
+                    ? { ok: true, message: "✓ Prompt sent! Check your phone." }
+                    : { ok: false, message: data.error || data.message || "Something went wrong" }
+                );
+              } catch {
+                setTestResult({ ok: false, message: "Network error. Try again." });
+              } finally {
+                setTesting(false);
+              }
+            }}
+            className="flex items-center gap-3"
+          >
+            <input
+              type="text"
+              placeholder="0712 345 678"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              required
+              className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none transition"
+              style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+            />
+            <button
+              type="submit"
+              disabled={testing}
+              className="px-4 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50 shrink-0"
+              style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
+            >
+              {testing ? "Sending..." : "Test Push"}
+            </button>
+          </form>
+
+          {testResult && (
+            <p className="text-sm font-medium" style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}>
+              {testResult.message}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -695,20 +814,20 @@ function InstallTab({
 
       <div
         className="rounded-xl border p-4 flex items-center gap-3"
-        style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
+        style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
       >
-        <code className="flex-1 text-sm font-mono select-all break-all" style={{ color: "#00C896" }}>
+        <code className="flex-1 text-sm font-mono select-all break-all" style={{ color: "var(--accent)" }}>
           {apiToken}
         </code>
         <button
           onClick={handleCopy}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-black shrink-0 transition hover:brightness-110"
-          style={{ background: "#00C896" }}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition hover:brightness-110"
+          style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
         >
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
-      <p className="text-xs text-[#888] -mt-4">
+      <p className="text-xs -mt-4" style={{ color: "var(--text-2)" }}>
         This token identifies your account. It&apos;s already included in the
         code snippets below &mdash; you don&apos;t need to edit anything.
       </p>
@@ -722,9 +841,9 @@ function InstallTab({
             onClick={() => setPlatform(p)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition"
             style={{
-              background: platform === p ? "#00C896" : "transparent",
-              color: platform === p ? "#000" : "#888",
-              border: platform === p ? "none" : "1px solid rgba(255,255,255,0.1)",
+              background: platform === p ? "var(--accent)" : "transparent",
+              color: platform === p ? "var(--accent-btn-text)" : "var(--text-2)",
+              border: platform === p ? "none" : "1px solid var(--border-input)",
             }}
           >
             {p}
@@ -747,7 +866,7 @@ function InstallTab({
 
       <SectionLabel>STEP 2: SEND A TEST PAYMENT</SectionLabel>
 
-      <p className="text-sm text-[#888]">
+      <p className="text-sm" style={{ color: "var(--text-2)" }}>
         Enter your own phone number to receive a real test prompt on your phone.
         We&apos;ll fire a KES 1 push to confirm everything works.
       </p>
@@ -760,15 +879,15 @@ function InstallTab({
             value={testPhone}
             onChange={(e) => setTestPhone(e.target.value)}
             required
-            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-            style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+            style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
           />
         </div>
         <button
           type="submit"
           disabled={sending}
-          className="px-5 py-2 rounded-lg text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-50 shrink-0"
-          style={{ background: "#00C896" }}
+          className="px-5 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50 shrink-0"
+          style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
         >
           {sending ? "Sending..." : "Send Test Push"}
         </button>
@@ -776,9 +895,9 @@ function InstallTab({
 
       {testResult && (
         <p
-          className={`text-sm ${testResult.ok ? "text-[#00C896]" : "text-[#FF4444]"}`}
+          className="text-sm"
+          style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}
         >
-          {testResult.ok && ""}
           {testResult.message}
         </p>
       )}
@@ -792,10 +911,10 @@ function SnippetBlock({ platform, apiToken, origin }: { platform: Platform; apiT
     <div className="space-y-4">
       {snippets.map((snippet, i) => (
         <div key={i}>
-          <p className="text-xs text-[#888] mb-2">{snippet.label}</p>
+          <p className="text-xs mb-2" style={{ color: "var(--text-2)" }}>{snippet.label}</p>
           <pre
             className="rounded-xl border p-4 text-xs font-mono leading-relaxed overflow-x-auto"
-            style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)" }}
+            style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text-1)" }}
           >
             <code>{snippet.code}</code>
           </pre>
@@ -820,8 +939,8 @@ function mash_stk_push($phone, $amount, $reference) {
         stream_context_create([
             "http" => [
                 "method"  => "POST",
-                "header"  => "Content-Type: application/json\\r\\n" .
-                             "x-token: ${token}\\r\\n",
+                "header"  => "Content-Type: application/json\\\\r\\\\n" .
+                             "x-token: ${token}\\\\r\\\\n",
                 "content" => json_encode([
                     "phone"     => $phone,
                     "amount"    => $amount,
@@ -991,9 +1110,9 @@ function CheckoutButton({ phone, total, orderId }) {
     cURL: [
       {
         label: "No setup needed. Run this in your terminal to test instantly.",
-        code: `curl -X POST ${url}/api/stkpush \\
-  -H "Content-Type: application/json" \\
-  -H "x-token: ${token}" \\
+        code: `curl -X POST ${url}/api/stkpush \\\\
+  -H "Content-Type: application/json" \\\\
+  -H "x-token: ${token}" \\\\
   -d '{
     "phone": "0712345678",
     "amount": 1,
@@ -1027,20 +1146,20 @@ function TransactionsTab({
       {transactions.length === 0 ? (
         <div
           className="rounded-xl border flex flex-col items-center justify-center py-16"
-          style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
         >
-          <i className="ti ti-device-mobile" style={{ fontSize: 40, color: "#555" }}></i>
-          <p className="text-lg font-semibold mt-3" style={{ color: "#888" }}>
+          <i className="ti ti-device-mobile" style={{ fontSize: 40, color: "var(--text-3)" }}></i>
+          <p className="text-lg font-semibold mt-3" style={{ color: "var(--text-2)" }}>
             No transactions yet
           </p>
-          <p className="text-sm text-[#555] mt-1 max-w-sm text-center">
+          <p className="text-sm mt-1 max-w-sm text-center" style={{ color: "var(--text-3)" }}>
             Head to the Install tab, copy your snippet, and make your
             first test payment to see it appear here.
           </p>
           <button
             onClick={onGoToInstall}
-            className="mt-4 px-4 py-2 rounded-lg text-sm font-semibold text-black transition hover:brightness-110"
-            style={{ background: "#00C896" }}
+            className="mt-4 px-4 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110"
+            style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
           >
             Go to Install
           </button>
@@ -1048,12 +1167,12 @@ function TransactionsTab({
       ) : (
         <div
           className="rounded-xl border overflow-hidden"
-          style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[#888] text-xs" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                <tr className="text-xs" style={{ color: "var(--text-2)", borderColor: "var(--border)" }}>
                   <th className="text-left px-4 py-3 font-medium">Time</th>
                   <th className="text-left px-4 py-3 font-medium">Phone</th>
                   <th className="text-right px-4 py-3 font-medium">Amount (KES)</th>
@@ -1067,9 +1186,9 @@ function TransactionsTab({
                   <tr
                     key={tx.id}
                     className="border-t text-sm"
-                    style={{ borderColor: "rgba(255,255,255,0.07)" }}
+                    style={{ borderColor: "var(--border)" }}
                   >
-                    <td className="px-4 py-3 text-xs text-[#888] whitespace-nowrap">
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--text-2)" }}>
                       {new Date(tx.created_at).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">{tx.phone}</td>

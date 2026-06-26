@@ -74,38 +74,36 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#0A0A0A" }}>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg)" }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Mash <span style={{ color: "#00C896" }}>Payments</span>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
+            Mash <span style={{ color: "var(--accent)" }}>Payments</span>
           </h1>
-          <p className="text-sm text-[#888] mt-1">STK Push Dashboard</p>
+          <p className="text-sm mt-1" style={{ color: "var(--text-2)" }}>STK Push Dashboard</p>
         </div>
 
         <div
           className="rounded-xl border p-1 flex mb-6"
-          style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
         >
           <button
             onClick={() => { setMode("signup"); setError(""); }}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
-              mode === "signup"
-                ? "text-black"
-                : "text-[#888] hover:text-white"
-            }`}
-            style={mode === "signup" ? { background: "#00C896" } : {}}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition`}
+            style={{
+              background: mode === "signup" ? "var(--accent)" : "transparent",
+              color: mode === "signup" ? "var(--accent-btn-text)" : "var(--text-2)",
+            }}
           >
             Sign Up
           </button>
           <button
             onClick={() => { setMode("login"); setError(""); }}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition ${
-              mode === "login"
-                ? "text-black"
-                : "text-[#888] hover:text-white"
-            }`}
-            style={mode === "login" ? { background: "#00C896" } : {}}
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition`}
+            style={{
+              background: mode === "login" ? "var(--accent)" : "transparent",
+              color: mode === "login" ? "var(--accent-btn-text)" : "var(--text-2)",
+            }}
           >
             Login
           </button>
@@ -113,7 +111,7 @@ export default function AuthPage() {
 
         <div
           className="rounded-xl border p-6"
-          style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
         >
           <form onSubmit={mode === "signup" ? handleSignUp : handleLogin} className="space-y-4">
             {mode === "signup" && (
@@ -125,8 +123,8 @@ export default function AuthPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-                    style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+                    className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition"
+                    style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
                   />
                 </div>
                 <div>
@@ -136,8 +134,8 @@ export default function AuthPage() {
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
                     required
-                    className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-                    style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+                    className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition"
+                    style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
                   />
                 </div>
               </>
@@ -149,8 +147,8 @@ export default function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-                style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+                className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition"
+                style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
               />
             </div>
             <div>
@@ -161,13 +159,13 @@ export default function AuthPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition focus:border-[#00C896]"
-                style={{ background: "#0A0A0A", borderColor: "rgba(255,255,255,0.07)", color: "#ededed" }}
+                className="w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition"
+                style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
               />
             </div>
 
             {mode === "signup" && (
-              <p className="text-xs text-[#888] leading-relaxed">
+              <p className="text-xs leading-relaxed" style={{ color: "var(--text-2)" }}>
                 Your account gives you a unique API token. You&apos;ll use this token
                 to connect any website or app to M-PESA in minutes.
               </p>
@@ -180,8 +178,8 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-lg text-sm font-semibold text-black transition hover:brightness-110 disabled:opacity-50"
-              style={{ background: "#00C896" }}
+              className="w-full py-2.5 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50"
+              style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
             >
               {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}
             </button>
