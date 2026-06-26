@@ -10,23 +10,25 @@ const SANDBOX_PASSKEY =
 
 const TABLE = "daraja_credentials";
 
-async function getCreds(userId: string) {
-  const supabase = getSupabaseAdmin();
-  const { data } = await (supabase
-    .from(TABLE)
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
-  return data;
-}
-
 export async function GET(request: NextRequest) {
   const user = await getUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const creds = await getCreds(user.id);
+  const supabase = getSupabaseAdmin();
+  const { data: creds, error } = await (supabase
+    .from(TABLE)
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
+
+  if (error) {
+    const msg = typeof error === "object" && error !== null && "message" in error
+      ? String((error as Record<string, unknown>).message)
+      : "Database error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 
   if (!creds) {
     return NextResponse.json({ config: null });
@@ -77,11 +79,12 @@ export async function POST(request: NextRequest) {
 
     const { data: existing } = await (supabase
       .from(TABLE)
-      .select("consumer_secret")
+      .select("id, consumer_secret")
       .eq("user_id", user.id)
       .limit(1) as unknown as Promise<{ data: any[] | null; error: unknown }>);
 
-    const existingSecret = existing?.[0]?.consumer_secret ?? "";
+    const row = existing?.[0];
+    const existingSecret = row?.consumer_secret ?? "";
     const finalSecret = consumer_secret || existingSecret;
 
     if (!finalSecret) {
@@ -102,22 +105,17 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    // Upsert — delete all then insert one clean row
-    const { error: delErr } = await (supabase
-      .from(TABLE)
-      .delete()
-      .eq("user_id", user.id) as unknown as Promise<{ error: unknown }>);
-    if (delErr) throw delErr;
-
-    const { error: insErr } = await (supabase
-      .from(TABLE)
-      .insert({ user_id: user.id, ...payload } as never) as unknown as Promise<{ error: unknown }>);
-    if (insErr) {
-      // If insert fails, re-create a minimal row so the user isn't orphaned
-      await (supabase
+    if (row) {
+      const { error } = await (supabase
         .from(TABLE)
-        .insert({ user_id: user.id, is_configured: false } as never) as unknown as Promise<{ error: unknown }>);
-      throw insErr;
+        .update(payload as never)
+        .eq("id", row.id) as unknown as Promise<{ error: unknown }>);
+      if (error) throw error;
+    } else {
+      const { error } = await (supabase
+        .from(TABLE)
+        .insert({ user_id: user.id, ...payload } as never) as unknown as Promise<{ error: unknown }>);
+      if (error) throw error;
     }
 
     const { error: profErr } = await (supabase
@@ -129,7 +127,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    const message =
+      typeof err === "object" && err !== null && "message" in err
+        ? String((err as Record<string, unknown>).message)
+        : String(err ?? "Unknown error");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

@@ -11,21 +11,35 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
-  const { data: profile } = await (supabase
+  const { data: profile, error: profileErr } = await (supabase
     .from("profiles")
     .select("id, business_name, api_token, setup_step, created_at")
     .eq("id", user.id)
     .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
 
+  if (profileErr) {
+    const msg = typeof profileErr === "object" && profileErr !== null && "message" in profileErr
+      ? String((profileErr as Record<string, unknown>).message)
+      : "Database error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  const { data: creds } = await (supabase
+  const { data: creds, error: credsErr } = await (supabase
     .from("daraja_credentials")
     .select("is_configured")
     .eq("user_id", user.id)
     .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
+
+  if (credsErr) {
+    const msg = typeof credsErr === "object" && credsErr !== null && "message" in credsErr
+      ? String((credsErr as Record<string, unknown>).message)
+      : "Database error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 
   return NextResponse.json({
     profile,

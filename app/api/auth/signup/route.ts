@@ -39,24 +39,39 @@ export async function POST(request: NextRequest) {
     const userId = authData.user.id;
     const apiToken = generateToken();
 
-    await supabase
+    const { error: profErr } = await (supabase
       .from("profiles")
       .insert({
         id: userId,
         business_name,
         api_token: apiToken,
         setup_step: 1,
-      } as never);
+      } as never) as unknown as Promise<{ error: unknown }>);
+    if (profErr) {
+      const msg = typeof profErr === "object" && profErr !== null && "message" in profErr
+        ? String((profErr as Record<string, unknown>).message)
+        : "Profile creation failed";
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
 
-    await supabase
+    const { error: credErr } = await (supabase
       .from("daraja_credentials")
       .insert({
         user_id: userId,
         is_configured: false,
-      } as never);
+      } as never) as unknown as Promise<{ error: unknown }>);
+    if (credErr) {
+      const msg = typeof credErr === "object" && credErr !== null && "message" in credErr
+        ? String((credErr as Record<string, unknown>).message)
+        : "Credentials row creation failed";
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, api_token: apiToken, email, password });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (err: unknown) {
+    const message = typeof err === "object" && err !== null && "message" in err
+      ? String((err as Record<string, unknown>).message)
+      : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

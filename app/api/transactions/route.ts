@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false }) as unknown as Promise<{ data: any; error: unknown }>);
 
   if (error) {
-    return NextResponse.json({ error: (error as Error).message || "Database error" }, { status: 500 });
+    const msg = typeof error === "object" && error !== null && "message" in error
+      ? String((error as Record<string, unknown>).message)
+      : "Database error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   return NextResponse.json({ transactions: data });
