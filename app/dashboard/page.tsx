@@ -450,6 +450,7 @@ function KeysTab({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [msgType, setMsgType] = useState<"success" | "error">("success");
+  const [keysJustSaved, setKeysJustSaved] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -499,8 +500,9 @@ function KeysTab({
     setSaving(false);
 
     if (data.success) {
-      setMessage("Gateway activated. Head to Install to get your code snippet.");
+      setMessage("Gateway activated! Test your push below before proceeding.");
       setMsgType("success");
+      setKeysJustSaved(true);
       onSaved();
     } else {
       setMessage(data.error || "Failed to save");
@@ -672,22 +674,27 @@ function KeysTab({
         </div>
       </form>
 
-      {credentials?.is_configured && (
+      {(keysJustSaved || credentials?.is_configured) && (
         <div
           className="rounded-xl border p-5 space-y-4"
-          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
+          style={{
+            background: "var(--sidebar)",
+            borderColor: "var(--accent)",
+            boxShadow: "0 0 0 1px var(--accent)20",
+          }}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-[2px] h-4 shrink-0" style={{ background: "#00C896" }} />
-            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>
-              QUICK TEST — SEND A KES 1 PUSH
-            </span>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span style={{ fontSize: 18 }}>📱</span>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>
+                Test Your Gateway Before You Continue
+              </p>
+            </div>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--text-2)" }}>
+              Enter your phone number. We&apos;ll send a real KES 1 STK push prompt to confirm
+              your Daraja keys are working correctly.
+            </p>
           </div>
-
-          <p className="text-sm" style={{ color: "var(--text-2)" }}>
-            Enter your phone number to confirm your gateway is working.
-            A KES 1 prompt will appear on your phone.
-          </p>
 
           <form
             onSubmit={async (e) => {
@@ -703,8 +710,8 @@ function KeysTab({
                 const data = await res.json();
                 setTestResult(
                   data.success
-                    ? { ok: true, message: "✓ Prompt sent! Check your phone." }
-                    : { ok: false, message: data.error || data.message || "Something went wrong" }
+                    ? { ok: true, message: "✓ STK push sent! Check your phone for the M-PESA prompt." }
+                    : { ok: false, message: data.error || data.message || "Push failed — check your Daraja keys" }
                 );
               } catch {
                 setTestResult({ ok: false, message: "Network error. Try again." });
@@ -716,27 +723,36 @@ function KeysTab({
           >
             <input
               type="text"
-              placeholder="0712 345 678"
+              placeholder="e.g. 0712 345 678"
               value={testPhone}
               onChange={(e) => setTestPhone(e.target.value)}
               required
-              className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none transition"
+              className="flex-1 px-3 py-2.5 rounded-lg border text-sm outline-none transition"
               style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
             />
             <button
               type="submit"
               disabled={testing}
-              className="px-4 py-2 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50 shrink-0"
+              className="px-5 py-2.5 rounded-lg text-sm font-semibold transition hover:brightness-110 disabled:opacity-50 shrink-0"
               style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
             >
-              {testing ? "Sending..." : "Test Push"}
+              {testing ? "Sending..." : "Send Test Push"}
             </button>
           </form>
 
           {testResult && (
-            <p className="text-sm font-medium" style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}>
-              {testResult.message}
-            </p>
+            <div
+              className="rounded-lg px-4 py-3 flex items-start gap-2"
+              style={{
+                background: testResult.ok ? "rgba(0,200,150,0.08)" : "rgba(255,68,68,0.08)",
+                border: `1px solid ${testResult.ok ? "var(--accent)" : "#FF4444"}`,
+              }}
+            >
+              <span style={{ fontSize: 15 }}>{testResult.ok ? "✅" : "❌"}</span>
+              <p className="text-sm font-medium" style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}>
+                {testResult.message}
+              </p>
+            </div>
           )}
         </div>
       )}
