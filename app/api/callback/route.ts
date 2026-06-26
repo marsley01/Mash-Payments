@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ResultCode: 0, ResultDesc: "Accepted" });
     }
 
-    const { CheckoutRequestID, ResultCode, ResultDesc, CallbackMetadata } = callback;
+    const { CheckoutRequestID, ResultCode, CallbackMetadata } = callback;
+    const supabase = getSupabaseAdmin();
 
     if (ResultCode === 0 && CallbackMetadata?.Item) {
       const items = CallbackMetadata.Item;
@@ -21,19 +22,14 @@ export async function POST(request: NextRequest) {
       );
       const mpesaReceipt = receiptItem?.Value || null;
 
-      const supabase = getSupabase();
       await supabase
         .from("transactions")
-        .update({
-          status: "SUCCESS",
-          mpesa_receipt: mpesaReceipt,
-        })
+        .update({ status: "SUCCESS", mpesa_receipt: mpesaReceipt } as never)
         .eq("checkout_request_id", CheckoutRequestID);
     } else {
-      const supabase = getSupabase();
       await supabase
         .from("transactions")
-        .update({ status: "FAILED" })
+        .update({ status: "FAILED" } as never)
         .eq("checkout_request_id", CheckoutRequestID);
     }
 

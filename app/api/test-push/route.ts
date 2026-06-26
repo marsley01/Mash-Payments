@@ -1,52 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendSTKPush } from "@/lib/daraja";
+import { getUserFromRequest } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const user = await getUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   try {
-    const token = request.headers.get("x-token");
-    if (!token) {
-      return NextResponse.json({ error: "Missing x-token header" }, { status: 401 });
-    }
-
     const supabase = getSupabaseAdmin();
-
-    const { data: profile, error: profileError } = await (supabase
-      .from("profiles")
-      .select("id, setup_step")
-      .eq("api_token", token)
-      .single() as unknown as Promise<{ data: any; error: unknown }>);
-
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: "Invalid token. Check your Mash Payments dashboard." },
-        { status: 401 }
-      );
-    }
 
     const { data: creds, error: credsError } = await (supabase
       .from("daraja_credentials")
       .select("*")
-      .eq("user_id", profile.id)
+      .eq("user_id", user.id)
       .single() as unknown as Promise<{ data: any; error: unknown }>);
 
     if (credsError || !creds || !creds.is_configured) {
       return NextResponse.json(
-        { error: "You haven't saved your Daraja keys yet. Visit your Mash Payments dashboard to set up." },
+        { error: "Save your Daraja keys first before testing." },
         { status: 400 }
       );
     }
 
     const body = await request.json();
-    const { phone, amount, reference } = body;
+    const phone = body.phone;
+    const amount = body.amount || 1;
+    const reference = "MASH-TEST";
 
-    if (!phone || !amount || !reference) {
-      return NextResponse.json(
-        { error: "phone, amount, and reference are required" },
-        { status: 400 }
-      );
+    if (!phone) {
+      return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
     }
 
     const result = await sendSTKPush(
@@ -67,7 +54,7 @@ export async function POST(request: NextRequest) {
       await supabase
         .from("transactions")
         .insert({
-          user_id: profile.id,
+          user_id: user.id,
           phone,
           amount,
           reference,
@@ -75,17 +62,23 @@ export async function POST(request: NextRequest) {
           status: "PENDING",
         } as never);
 
-      if (profile.setup_step < 4) {
+      const { data: profile } = await (supabase
+        .from("profiles")
+        .select("setup_step")
+        .eq("id", user.id)
+        .single() as unknown as Promise<{ data: any; error: unknown }>);
+
+      if (profile && profile.setup_step < 4) {
         await supabase
           .from("profiles")
           .update({ setup_step: 4 } as never)
-          .eq("id", profile.id);
+          .eq("id", user.id);
       }
 
       return NextResponse.json({
         success: true,
         checkout_request_id: result.CheckoutRequestID,
-        message: "STK Push sent. Ask the customer to check their phone.",
+        message: "Prompt sent! Check your phone.",
       });
     }
 
@@ -93,7 +86,6 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         message: result.errorMessage || result.ResponseDescription || "STK push failed",
-        error: result,
       },
       { status: 500 }
     );
