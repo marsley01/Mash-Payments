@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     .from("profiles")
     .select("id, business_name, api_token, setup_step, created_at")
     .eq("id", user.id)
-    .single() as unknown as Promise<{ data: any; error: unknown }>);
+    .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
 
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     .from("daraja_credentials")
     .select("is_configured")
     .eq("user_id", user.id)
-    .single() as unknown as Promise<{ data: any; error: unknown }>);
+    .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
 
   return NextResponse.json({
     profile,

@@ -26,13 +26,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: creds, error: credsError } = await (supabase
+    const { data: creds } = await (supabase
       .from("daraja_credentials")
       .select("*")
       .eq("user_id", profile.id)
-      .single() as unknown as Promise<{ data: any; error: unknown }>);
+      .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
 
-    if (credsError || !creds || !creds.is_configured) {
+    if (!creds || !creds.consumer_key) {
       return NextResponse.json(
         { error: "You haven't saved your Daraja keys yet. Visit your Mash Payments dashboard to set up." },
         { status: 400 }

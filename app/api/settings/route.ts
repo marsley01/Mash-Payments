@@ -8,18 +8,25 @@ const SANDBOX_PASSKEY =
   process.env.SANDBOX_PASSKEY ||
   "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
 
+const TABLE = "daraja_credentials";
+
+async function getCreds(userId: string) {
+  const supabase = getSupabaseAdmin();
+  const { data } = await (supabase
+    .from(TABLE)
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
+  return data;
+}
+
 export async function GET(request: NextRequest) {
   const user = await getUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const supabase = getSupabaseAdmin();
-  const { data: creds } = await (supabase
-    .from("daraja_credentials")
-    .select("*")
-    .eq("user_id", user.id)
-    .single() as unknown as Promise<{ data: any; error: unknown }>);
+  const creds = await getCreds(user.id);
 
   if (!creds) {
     return NextResponse.json({ config: null });
@@ -53,13 +60,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For sandbox mode, auto-fill shortcode and passkey
     const isSandbox = environment === "sandbox";
     if (isSandbox) {
       shortcode = "174379";
       passkey = SANDBOX_PASSKEY;
     } else {
-      // Production mode requires all fields
       if (!passkey || !shortcode) {
         return NextResponse.json(
           { error: "Shortcode and Passkey are required for production" },
@@ -70,14 +75,13 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    const existing = await (supabase
-      .from("daraja_credentials")
-      .select("id, consumer_secret")
+    const { data: existing } = await (supabase
+      .from(TABLE)
+      .select("consumer_secret")
       .eq("user_id", user.id)
-      .single() as unknown as Promise<{ data: any; error: unknown }>);
+      .limit(1) as unknown as Promise<{ data: any[] | null; error: unknown }>);
 
-    // If updating and no new secret provided, keep the existing one
-    const finalSecret = consumer_secret || (existing.data?.consumer_secret ?? "");
+    const finalSecret = consumer_secret || (existing?.[0]?.consumer_secret ?? "");
 
     if (!finalSecret) {
       return NextResponse.json(
@@ -86,36 +90,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const payload = {
-      consumer_key,
-      consumer_secret: finalSecret,
-      passkey,
-      shortcode,
-      environment: environment || "sandbox",
-      callback_url,
-      is_configured: true,
-      updated_at: new Date().toISOString(),
-    };
+    // Delete all stale rows for this user, then insert fresh
+    await (supabase
+      .from(TABLE)
+      .delete()
+      .eq("user_id", user.id) as never as unknown as Promise<{ error: unknown }>);
 
-    if (existing.data) {
-      await supabase
-        .from("daraja_credentials")
-        .update(payload as never)
-        .eq("user_id", user.id);
-    } else {
-      await supabase
-        .from("daraja_credentials")
-        .insert({
-          user_id: user.id,
-          ...payload,
-        } as never);
-    }
+    const { error: insertErr } = await (supabase
+      .from(TABLE)
+      .insert({
+        user_id: user.id,
+        consumer_key,
+        consumer_secret: finalSecret,
+        passkey,
+        shortcode,
+        environment: environment || "sandbox",
+        callback_url,
+        is_configured: true,
+        updated_at: new Date().toISOString(),
+      } as never) as unknown as Promise<{ error: unknown }>);
+    if (insertErr) throw insertErr;
 
-    await supabase
+    const { error: profileErr } = await (supabase
       .from("profiles")
       .update({ setup_step: 3 } as never)
       .eq("id", user.id)
-      .lt("setup_step", 3);
+      .lt("setup_step", 3) as unknown as Promise<{ error: unknown }>);
+    if (profileErr) throw profileErr;
 
     return NextResponse.json({ success: true });
   } catch {

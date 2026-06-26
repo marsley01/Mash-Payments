@@ -14,13 +14,13 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
 
-    const { data: creds, error: credsError } = await (supabase
+    const { data: creds } = await (supabase
       .from("daraja_credentials")
       .select("*")
       .eq("user_id", user.id)
-      .single() as unknown as Promise<{ data: any; error: unknown }>);
+      .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
 
-    if (credsError || !creds || !creds.is_configured) {
+    if (!creds || !creds.consumer_key) {
       return NextResponse.json(
         { error: "Save your Daraja keys first before testing." },
         { status: 400 }
