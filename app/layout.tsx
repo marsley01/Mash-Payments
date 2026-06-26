@@ -19,6 +19,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css"
+        />
+      </head>
       <body className={`${jakarta.variable} font-sans antialiased`}>
         {children}
       </body>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 type Tab = "overview" | "keys" | "install" | "transactions";
 
@@ -35,10 +36,10 @@ interface Transaction {
 }
 
 const tabs: { key: Tab; label: string; icon: string }[] = [
-  { key: "overview", label: "Overview", icon: "\uF1CA" },
-  { key: "keys", label: "API Keys Setup", icon: "\uF1C0" },
-  { key: "install", label: "Install", icon: "\uF20E" },
-  { key: "transactions", label: "Transactions", icon: "\uF267" },
+  { key: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+  { key: "keys", label: "API Keys Setup", icon: "ti-key" },
+  { key: "install", label: "Install", icon: "ti-code" },
+  { key: "transactions", label: "Transactions", icon: "ti-file-invoice" },
 ];
 
 export default function DashboardPage() {
@@ -123,6 +124,7 @@ export default function DashboardPage() {
   const isConfiguredBool = isConfigured || (credentials?.is_configured === true);
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen flex" style={{ background: "#0A0A0A" }}>
       <aside
         className="flex flex-col shrink-0"
@@ -158,7 +160,7 @@ export default function DashboardPage() {
                   if (!isActive) e.currentTarget.style.background = "transparent";
                 }}
               >
-                <span style={{ fontFamily: "tabler-icons", fontSize: 16 }}>{t.icon}</span>
+                <i className={`ti ${t.icon}`} style={{ fontSize: 16 }}></i>
                 <span className="flex-1">{t.label}</span>
                 {showDot && (
                   <span
@@ -216,7 +218,7 @@ export default function DashboardPage() {
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[#888] hover:text-[#FF4444] transition hover:bg-white/[0.03]"
           >
-            <span style={{ fontFamily: "tabler-icons", fontSize: 16 }}>{String.fromCharCode(0xEF6B)}</span>
+            <i className="ti ti-settings" style={{ fontSize: 16 }}></i>
             <span>Settings / Logout</span>
           </button>
         </div>
@@ -257,6 +259,7 @@ export default function DashboardPage() {
         )}
       </main>
     </div>
+    </ErrorBoundary>
   );
 }
 
@@ -1026,9 +1029,7 @@ function TransactionsTab({
           className="rounded-xl border flex flex-col items-center justify-center py-16"
           style={{ background: "#111111", borderColor: "rgba(255,255,255,0.07)" }}
         >
-          <span style={{ fontFamily: "tabler-icons", fontSize: 40, color: "#555" }}>
-            {String.fromCharCode(0xF025)}
-          </span>
+          <i className="ti ti-device-mobile" style={{ fontSize: 40, color: "#555" }}></i>
           <p className="text-lg font-semibold mt-3" style={{ color: "#888" }}>
             No transactions yet
           </p>
