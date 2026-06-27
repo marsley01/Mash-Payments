@@ -99,7 +99,11 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
-  } catch {
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  } catch (err: unknown) {
+    const message =
+      typeof err === "object" && err !== null && "message" in err
+        ? String((err as Record<string, unknown>).message)
+        : "Internal server error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
