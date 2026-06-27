@@ -726,6 +726,8 @@ function KeysTab({
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const hasExistingKeys = !!(credentials?.consumer_key);
+
   useEffect(() => {
     if (credentials) {
       setConsumerKey(credentials.consumer_key || "");
@@ -785,42 +787,126 @@ function KeysTab({
     <div className="max-w-2xl space-y-6">
       <SectionLabel>YOUR DARAJA CREDENTIALS</SectionLabel>
 
-      <p className="text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>
-        Two things from Safaricom&apos;s developer portal — that&apos;s it.
-        We handle everything else automatically.
-      </p>
+      {/* Section Header */}
+      <div>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>
+          Connect your proprietary Safaricom developer apps. We securely encrypt and store your credentials, handling all OAuth token requests automatically.
+        </p>
+        <a
+          href="https://developer.safaricom.co.ke"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-sm hover:underline mt-2"
+          style={{ color: "var(--accent)" }}
+        >
+          Don&apos;t have keys yet? &rarr; Get them free from developer.safaricom.co.ke
+        </a>
+      </div>
 
-      <a
-        href="https://developer.safaricom.co.ke"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block text-sm hover:underline"
-        style={{ color: "var(--accent)" }}
+      {/* Dual-Environment Tab Selector */}
+      <div
+        className="rounded-xl p-1.5 grid grid-cols-2 gap-2 border"
+        style={{ background: "var(--toggle-bg)", borderColor: "var(--border)" }}
       >
-        Don&apos;t have keys yet? &rarr; Get them free from developer.safaricom.co.ke
-      </a>
+        <button
+          type="button"
+          onClick={() => setEnvironment("sandbox")}
+          className="btn-apple text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition"
+          style={{
+            background: environment === "sandbox" ? "var(--card)" : "transparent",
+            color: environment === "sandbox" ? "var(--accent)" : "var(--text-2)",
+            boxShadow: environment === "sandbox" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <span className="w-2 h-2 rounded-full" style={{ background: environment === "sandbox" ? "var(--accent)" : "var(--text-3)" }} />
+          Sandbox Mode (Testing)
+        </button>
+        <button
+          type="button"
+          onClick={() => setEnvironment("production")}
+          className="btn-apple text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 transition"
+          style={{
+            background: environment === "production" ? "var(--card)" : "transparent",
+            color: environment === "production" ? "var(--text-1)" : "var(--text-2)",
+            boxShadow: environment === "production" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+          }}
+        >
+          <span className="w-2 h-2 rounded-full" style={{ background: environment === "production" ? "#F59E0B" : "var(--text-3)" }} />
+          Live Mode (Production)
+        </button>
+      </div>
 
+      {/* Environment Context Banner */}
+      {environment === "sandbox" ? (
+        <div
+          className="rounded-xl p-4 text-xs leading-relaxed flex items-start gap-3"
+          style={{ background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.15)" }}
+        >
+          <i className="ti ti-info-circle" style={{ color: "var(--accent)", fontSize: 16, marginTop: 1, flexShrink: 0 }} />
+          <div>
+            <p className="font-bold" style={{ color: "var(--accent)" }}>Sandbox Environment Selected</p>
+            <p className="mt-0.5" style={{ color: "var(--text-2)" }}>
+              Test transactions do not move real currency. We automatically supply the test Paybill shortcode (<span className="font-mono font-bold" style={{ color: "var(--accent)" }}>174379</span>) and Passkey behind the scenes.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="rounded-xl p-4 text-xs leading-relaxed flex items-start gap-3"
+          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}
+        >
+          <i className="ti ti-alert-triangle" style={{ color: "#F59E0B", fontSize: 16, marginTop: 1, flexShrink: 0 }} />
+          <div>
+            <p className="font-bold" style={{ color: "#F59E0B" }}>Live Mode Selected — Real Money Will Move</p>
+            <p className="mt-0.5" style={{ color: "var(--text-2)" }}>
+              You need your own Paybill/Till shortcode and Passkey from Safaricom. Double-check your credentials before saving — incorrect keys will cause payment failures for your customers.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Form */}
       <form onSubmit={handleSave} className="space-y-5">
-        <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Consumer Key</label>
-          <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
-            From your Daraja app dashboard
-          </p>
+        {/* Consumer Key */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Consumer Key</label>
+            {hasExistingKeys && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(0,200,150,0.1)", color: "var(--accent)" }}>
+                <i className="ti ti-circle-check" style={{ fontSize: 11 }} />
+                Validated
+              </span>
+            )}
+          </div>
           <input
             type="text"
             value={consumerKey}
             onChange={(e) => setConsumerKey(e.target.value)}
             required
-            className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+            className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono outline-none transition"
             style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
           />
+          <p className="text-[10px] leading-normal" style={{ color: "var(--text-3)" }}>
+            Retrieve this string directly from your selected App item inside the{" "}
+            <a href="https://developer.safaricom.co.ke" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
+              Safaricom Developer Portal
+            </a>.
+          </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Consumer Secret</label>
-          <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
-            Treat this like a password — keep it private
-          </p>
+        {/* Consumer Secret */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center">
+            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Consumer Secret</label>
+            <button
+              type="button"
+              onClick={() => setShowSecret(!showSecret)}
+              className="text-[10px] font-semibold transition"
+              style={{ color: "var(--text-3)" }}
+            >
+              {showSecret ? "Hide Secret" : "Show Secret"}
+            </button>
+          </div>
           <div className="relative">
             <input
               type={showSecret ? "text" : "password"}
@@ -828,98 +914,47 @@ function KeysTab({
               onChange={(e) => setConsumerSecret(e.target.value)}
               required={!credentials}
               placeholder={credentials ? "Leave blank to keep current" : ""}
-              className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+              className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono outline-none transition"
               style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
             />
-            <button
-              type="button"
-              onClick={() => setShowSecret(!showSecret)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs transition"
-              style={{ color: "var(--text-2)" }}
-            >
-              {showSecret ? "Hide" : "Show"}
-            </button>
           </div>
+          <p className="text-[10px] leading-normal" style={{ color: "var(--text-3)" }}>
+            Treat this like a system password — keep it strictly private to prevent unauthorized transaction initiation attempts.
+          </p>
         </div>
 
-        <div>
-          <div
-            className="rounded-xl border p-1 flex"
-            style={{ background: "var(--toggle-bg)", borderColor: "var(--border)" }}
-          >
-            <button
-              type="button"
-              onClick={() => setEnvironment("sandbox")}
-              className="btn-apple flex-1 py-2 text-sm font-medium rounded-lg"
-              style={{
-                background: environment === "sandbox" ? "var(--accent)" : "transparent",
-                color: environment === "sandbox" ? "var(--accent-btn-text)" : "var(--text-2)",
-              }}
-            >
-              🧪 Sandbox — Testing
-            </button>
-            <button
-              type="button"
-              onClick={() => setEnvironment("production")}
-              className="btn-apple flex-1 py-2 text-sm font-medium rounded-lg"
-              style={{
-                background: environment === "production" ? "var(--accent)" : "transparent",
-                color: environment === "production" ? "var(--accent-btn-text)" : "var(--text-2)",
-              }}
-            >
-              🚀 Live — Real Payments
-            </button>
-          </div>
-        </div>
-
-        {environment === "sandbox" && (
-          <div
-            className="rounded-xl border p-4 text-sm leading-relaxed"
-            style={{ background: "var(--sidebar)", borderColor: "var(--border)", color: "var(--text-2)" }}
-          >
-            Sandbox uses Safaricom&apos;s test environment. No real money moves.
-            Shortcode and Passkey are set automatically for you.
-          </div>
-        )}
-
+        {/* Production Fields */}
         {environment === "production" && (
-          <div
-            className="rounded-xl border p-5 space-y-4"
-            style={{ background: "var(--sidebar)", borderColor: "var(--accent)" }}
-          >
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Shortcode</label>
-              <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
-                Your M-PESA Paybill or Buy Goods Till number
-              </p>
+          <div className="space-y-4 rounded-xl border p-5" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Shortcode</label>
+              <p className="text-[10px]" style={{ color: "var(--text-3)" }}>Your M-PESA Paybill or Buy Goods Till number</p>
               <input
                 type="text"
                 value={shortcode}
                 onChange={(e) => setShortcode(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+                className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono outline-none transition"
                 style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-1)" }}>Passkey</label>
-              <p className="text-[11px] mb-1.5" style={{ color: "var(--text-2)" }}>
-                Provided by Safaricom with your production credentials
-              </p>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Passkey</label>
+              <p className="text-[10px]" style={{ color: "var(--text-3)" }}>Provided by Safaricom with your production credentials</p>
               <div className="relative">
                 <input
                   type={showPasskey ? "text" : "password"}
                   value={passkey}
                   onChange={(e) => setPasskey(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-lg border text-sm outline-none transition"
+                  className="w-full px-4 py-2.5 rounded-xl border text-xs font-mono outline-none transition"
                   style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPasskey(!showPasskey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs transition"
-                  style={{ color: "var(--text-2)" }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] transition"
+                  style={{ color: "var(--text-3)" }}
                 >
                   {showPasskey ? "Hide" : "Show"}
                 </button>
@@ -928,83 +963,76 @@ function KeysTab({
           </div>
         )}
 
-          <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-apple px-6 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ background: "var(--accent)", color: "var(--accent-btn-text)", minWidth: 180 }}
-            >
-              {saving ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
-                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-                  </svg>
-                  Saving...
-                </span>
-              ) : "Save & Activate Gateway"}
-            </button>
-            {message && (
-              <span className="text-sm animate-fade-up" style={{ color: msgType === "success" ? "var(--accent)" : "#FF4444" }}>
-                {message}
+        {/* Save Button */}
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="btn-apple px-6 py-2.5 rounded-xl text-sm font-semibold"
+            style={{ background: "var(--accent)", color: "var(--accent-btn-text)", minWidth: 180 }}
+          >
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                </svg>
+                Saving...
               </span>
-            )}
-          </div>
+            ) : "Save & Activate Gateway"}
+          </button>
+          {message && (
+            <span className="text-sm animate-fade-up" style={{ color: msgType === "success" ? "var(--accent)" : "#FF4444" }}>
+              {message}
+            </span>
+          )}
+        </div>
       </form>
 
+      {/* Already Configured Card */}
       {(keysJustSaved || (credentials?.is_configured && !keysJustSaved)) && (
-        <div className={`rounded-xl p-6 space-y-5 ${keysJustSaved ? "animate-scale-in" : ""}`} style={{ background: "var(--sidebar)", border: "1px solid var(--accent)" }}>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(0,200,150,0.12)" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path className={keysJustSaved ? "success-check" : ""} d="M5 13l4 4L19 7" />
-              </svg>
+        <div className={`rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${keysJustSaved ? "animate-scale-in" : ""}`} style={{ background: "var(--sidebar)", border: "1px solid var(--accent)" }}>
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(0,200,150,0.12)", border: "1px solid rgba(0,200,150,0.2)" }}>
+              <i className="ti ti-circle-check" style={{ color: "var(--accent)", fontSize: 20 }} />
             </div>
             <div>
-              <p className="text-base font-semibold" style={{ color: "var(--text-1)" }}>
+              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>
                 {keysJustSaved ? "Gateway Activated" : "Already Configured"}
               </p>
               <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>
-                {keysJustSaved ? "Your Daraja keys are saved and ready to go." : "Your gateway is already active. You can test it or proceed to install."}
+                {keysJustSaved ? "Your Daraja keys are saved and ready to go." : "Your credentials match successfully. You can run immediate simulation checkout loops or continue setup installation steps."}
               </p>
             </div>
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex items-center gap-2 w-full md:w-auto">
             <button
               onClick={() => {
                 const el = document.getElementById("test-section");
                 el?.classList.toggle("hidden");
               }}
-              className="btn-apple flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ background: "var(--toggle-bg)", color: "var(--text-1)", border: "0.5px solid var(--border-input)" }}
+              className="btn-apple flex-1 md:flex-initial text-xs font-semibold py-2 px-4 rounded-xl border transition"
+              style={{ background: "var(--toggle-bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
             >
-              <span className="flex items-center justify-center gap-2">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 7h16M7 12h10M10 17h4"/>
-                </svg>
-                Test Your Integration
-              </span>
+              Test Connection
             </button>
             <button
               onClick={onGoToInstall}
-              className="btn-apple flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold"
+              className="btn-apple flex-1 md:flex-initial text-xs font-semibold py-2 px-4 rounded-xl transition"
               style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
             >
-              <span className="flex items-center justify-center gap-2">
-                Continue to Install
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M13 6l6 6-6 6"/>
-                </svg>
-              </span>
+              Continue to Install
             </button>
           </div>
+        </div>
+      )}
 
-          <div id="test-section" className="hidden space-y-4 animate-fade-up" style={{ borderTop: "0.5px solid var(--border)", paddingTop: 16 }}>
+      {/* Test Section */}
+      {keysJustSaved || credentials?.is_configured ? (
+        <div id="test-section" className="hidden space-y-4 animate-fade-up">
+          <div style={{ borderTop: "0.5px solid var(--border)", paddingTop: 16 }}>
             <p className="text-xs" style={{ color: "var(--text-2)" }}>
-              Enter your phone number. We&apos;ll send a real KES 1 STK push prompt to confirm
-              your Daraja keys are working correctly.
+              Enter your phone number. We&apos;ll send a real KES 1 STK push prompt to confirm your Daraja keys are working correctly.
             </p>
             <form
               onSubmit={async (e) => {
@@ -1029,7 +1057,7 @@ function KeysTab({
                   setTesting(false);
                 }
               }}
-              className="flex items-center gap-3"
+              className="flex items-center gap-3 mt-4"
             >
               <input
                 type="text"
@@ -1059,7 +1087,7 @@ function KeysTab({
             </form>
 
             {testResult && (
-              <div className="animate-fade-up">
+              <div className="animate-fade-up mt-4">
                 <div
                   className="rounded-xl px-4 py-3 flex items-start gap-2"
                   style={{
@@ -1076,7 +1104,7 @@ function KeysTab({
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
