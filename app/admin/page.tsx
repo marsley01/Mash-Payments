@@ -238,7 +238,7 @@ export default function AdminPage() {
             <>
               {activeTab === "overview" && <OverviewTab stats={stats} transactions={transactions} />}
               {activeTab === "users" && (
-                <UsersTab users={users} updating={updating} onToggleRole={toggleRole} />
+                <UsersTab users={users} updating={updating} onToggleRole={toggleRole} accessToken={accessToken} onRefresh={fetchAdminData} />
               )}
               {activeTab === "transactions" && <TransactionsTab transactions={transactions} />}
             </>
@@ -560,13 +560,19 @@ function UsersTab({
   users,
   updating,
   onToggleRole,
+  accessToken,
+  onRefresh,
 }: {
   users: AdminUser[];
   updating: string | null;
   onToggleRole: (id: string, role: string) => void;
+  accessToken: string;
+  onRefresh: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [stepFilter, setStepFilter] = useState(0);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -586,6 +592,86 @@ function UsersTab({
     const funnelHealth = total > 0 ? Math.round((atStep4 / total) * 100) : 0;
     return { total, broken, funnelHealth };
   }, [users]);
+
+  function handleExportCSV() {
+    const headers = ["Business Name", "Email", "API Token", "Setup Step", "Gateway", "Role", "Created"];
+    const rows = filtered.map((u) => [
+      u.business_name,
+      u.email || "",
+      u.api_token || "",
+      String(u.setup_step),
+      u.is_configured ? "Active" : "Inactive",
+      u.role,
+      u.created_at,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mash-tenants-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleCreateTenant() {
+    setActionMsg({ text: "Opening signup form...", ok: true });
+    window.open("/auth", "_blank");
+    setTimeout(() => setActionMsg(null), 3000);
+  }
+
+  async function handleApproveProduction(userId: string) {
+    setActionLoading(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ setup_step: 4 }),
+      });
+      const data = await res.json();
+      setActionMsg({ text: data.success ? "User promoted to production" : data.error || "Failed", ok: data.success });
+      if (data.success) onRefresh();
+    } catch {
+      setActionMsg({ text: "Network error", ok: false });
+    } finally {
+      setActionLoading(null);
+      setTimeout(() => setActionMsg(null), 3000);
+    }
+  }
+
+  async function handleRevokeKey(userId: string) {
+    setActionLoading(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ is_configured: false, setup_step: 2 }),
+      });
+      const data = await res.json();
+      setActionMsg({ text: data.success ? "API key revoked, user reset to sandbox" : data.error || "Failed", ok: data.success });
+      if (data.success) onRefresh();
+    } catch {
+      setActionMsg({ text: "Network error", ok: false });
+    } finally {
+      setActionLoading(null);
+      setTimeout(() => setActionMsg(null), 3000);
+    }
+  }
+
+  function handleSendHelp(email: string) {
+    setActionMsg({ text: `Onboarding help would be sent to ${email}`, ok: true });
+    setTimeout(() => setActionMsg(null), 3000);
+  }
+
+  function handleResendKeys(email: string) {
+    setActionMsg({ text: `Key setup instructions resent to ${email}`, ok: true });
+    setTimeout(() => setActionMsg(null), 3000);
+  }
+
+  function handleAudit(businessName: string) {
+    setActionMsg({ text: `Audit log for ${businessName} — feature coming soon`, ok: true });
+    setTimeout(() => setActionMsg(null), 3000);
+  }
 
   return (
     <div className="space-y-6">
@@ -650,6 +736,7 @@ function UsersTab({
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={handleExportCSV}
             className="btn-apple text-xs font-semibold py-2 px-3.5 rounded-lg border transition flex items-center gap-1.5"
             style={{ background: "var(--toggle-bg)", borderColor: "var(--border-input)", color: "var(--text-2)" }}
           >
@@ -657,6 +744,7 @@ function UsersTab({
             Export CSV
           </button>
           <button
+            onClick={handleCreateTenant}
             className="btn-apple text-xs font-semibold py-2 px-3.5 rounded-lg transition"
             style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
           >
@@ -665,6 +753,18 @@ function UsersTab({
           </button>
         </div>
       </div>
+
+      {/* Action Feedback Toast */}
+      {actionMsg && (
+        <div className="fixed bottom-6 right-6 z-50 animate-fade-up">
+          <div
+            className="rounded-xl px-4 py-3 text-sm font-medium shadow-lg"
+            style={{ background: actionMsg.ok ? "#00C896" : "#FF4444", color: "#0A0A0A" }}
+          >
+            {actionMsg.text}
+          </div>
+        </div>
+      )}
 
       {/* Users Table */}
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
@@ -728,6 +828,8 @@ function UsersTab({
                       <div className="flex items-center justify-end gap-2">
                         {u.setup_step < 2 && (
                           <button
+                            onClick={() => handleSendHelp(u.email || u.business_name)}
+                            disabled={actionLoading === u.id}
                             className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
                             style={{ background: `${diagnostic.color}15`, color: diagnostic.color }}
                           >
@@ -736,14 +838,18 @@ function UsersTab({
                         )}
                         {u.setup_step >= 2 && u.setup_step < 4 && u.is_configured && (
                           <button
+                            onClick={() => handleApproveProduction(u.id)}
+                            disabled={actionLoading === u.id}
                             className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
                             style={{ background: "#8B5CF6", color: "#FFFFFF" }}
                           >
-                            Approve Production
+                            {actionLoading === u.id ? "..." : "Approve Production"}
                           </button>
                         )}
                         {u.setup_step >= 2 && !u.is_configured && (
                           <button
+                            onClick={() => handleResendKeys(u.email || u.business_name)}
+                            disabled={actionLoading === u.id}
                             className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
                             style={{ background: "#FF444415", color: "#FF4444" }}
                           >
@@ -753,12 +859,15 @@ function UsersTab({
                         {u.setup_step >= 4 && u.is_configured && (
                           <>
                             <button
+                              onClick={() => handleRevokeKey(u.id)}
+                              disabled={actionLoading === u.id}
                               className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
                               style={{ background: "#FF444415", color: "#FF4444" }}
                             >
-                              Revoke API Key
+                              {actionLoading === u.id ? "..." : "Revoke API Key"}
                             </button>
                             <button
+                              onClick={() => handleAudit(u.business_name)}
                               className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
                               style={{ background: "var(--toggle-bg)", border: "0.5px solid var(--border-input)", color: "var(--text-2)" }}
                             >

@@ -362,6 +362,7 @@ function OverviewTab({
   const [playAmount, setPlayAmount] = useState("1");
   const [sending, setSending] = useState(false);
   const [playResult, setPlayResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [repushingId, setRepushingId] = useState<string | null>(null);
 
   let nextStep: { label: string; tab: Tab } | null = null;
   if (!isConfigured) nextStep = { label: "Save your Daraja keys", tab: "keys" };
@@ -388,6 +389,21 @@ function OverviewTab({
       setPlayResult({ ok: false, message: "Network error. Try again." });
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleRepush(txId: string, phone: string, amount: number) {
+    setRepushingId(txId);
+    try {
+      await fetch("/api/test-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ phone, amount: amount || 1 }),
+      });
+    } catch {
+      // silent — repush is best-effort
+    } finally {
+      setRepushingId(null);
     }
   }
 
@@ -588,11 +604,13 @@ function OverviewTab({
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <button
+                          onClick={() => handleRepush(tx.id, tx.phone, Number(tx.amount))}
+                          disabled={repushingId === tx.id}
                           className="btn-apple text-[10px] font-semibold py-1 px-2.5 rounded border transition"
                           style={{ background: "var(--toggle-bg)", borderColor: "var(--border-input)", color: "var(--text-2)" }}
                           title="Repush STK Prompt"
                         >
-                          Repush
+                          {repushingId === tx.id ? "..." : "Repush"}
                         </button>
                       </td>
                     </tr>
@@ -1124,7 +1142,9 @@ function InstallTab({
   onTestComplete: () => void;
 }) {
   const [platform, setPlatform] = useState<Platform>("PHP");
-  const [copied, setCopied] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
+  const [tokenRevealed, setTokenRevealed] = useState(false);
+  const [snippetCopiedIdx, setSnippetCopiedIdx] = useState(-1);
   const [testPhone, setTestPhone] = useState("");
   const [sending, setSending] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -1134,11 +1154,13 @@ function InstallTab({
     setOrigin(window.location.origin);
   }, []);
 
-  async function handleCopy() {
+  const handshakeDone = setupStep >= 3;
+
+  async function handleCopyToken() {
     try {
       await navigator.clipboard.writeText(apiToken);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTokenCopied(true);
+      setTimeout(() => setTokenCopied(false), 2000);
     } catch {
       const ta = document.createElement("textarea");
       ta.value = apiToken;
@@ -1146,8 +1168,25 @@ function InstallTab({
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTokenCopied(true);
+      setTimeout(() => setTokenCopied(false), 2000);
+    }
+  }
+
+  async function handleCopySnippet(code: string, idx: number) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setSnippetCopiedIdx(idx);
+      setTimeout(() => setSnippetCopiedIdx(-1), 2000);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setSnippetCopiedIdx(idx);
+      setTimeout(() => setSnippetCopiedIdx(-1), 2000);
     }
   }
 
@@ -1173,67 +1212,203 @@ function InstallTab({
     }
   }
 
-  return (
-    <div className="max-w-3xl space-y-8">
-      <SectionLabel>YOUR UNIQUE TOKEN</SectionLabel>
+  const snippets = getSnippets(platform, apiToken, origin);
 
-      <div
-        className="rounded-xl border p-4 flex items-center gap-3"
-        style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
-      >
-        <code className="flex-1 text-sm font-mono select-all break-all" style={{ color: "var(--accent)" }}>
-          {apiToken}
-        </code>
-        <button
-          onClick={handleCopy}
-          className="btn-apple px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0"
-          style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
-        >
-          {copied ? "Copied!" : "Copy"}
-        </button>
-      </div>
-      <p className="text-xs -mt-4" style={{ color: "var(--text-2)" }}>
-        This token identifies your account. It&apos;s already included in the
-        code snippets below &mdash; you don&apos;t need to edit anything.
+  return (
+    <div className="max-w-4xl space-y-6">
+      <SectionLabel>YOUR INTEGRATION CREDENTIALS</SectionLabel>
+
+      {/* Header */}
+      <p className="text-sm leading-relaxed" style={{ color: "var(--text-2)" }}>
+        Authenticate payment handshakes using your unique account token. The scripts below are customized automatically for you.
       </p>
 
-      <SectionLabel>STEP 1: CHOOSE YOUR PLATFORM</SectionLabel>
-
-      <div className="flex flex-wrap gap-2">
-        {PLATFORMS.map((p) => (
+      {/* Secure Token Vault */}
+      <div className="rounded-xl border p-4 space-y-3" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+        <div className="flex justify-between items-center">
+          <span className="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--text-2)" }}>
+            <i className="ti ti-lock" style={{ fontSize: 14, color: "var(--accent)" }} />
+            Secure Live Client Token
+          </span>
           <button
-            key={p}
-            onClick={() => setPlatform(p)}
-            className="btn-apple px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{
-              background: platform === p ? "var(--accent)" : "transparent",
-              color: platform === p ? "var(--accent-btn-text)" : "var(--text-2)",
-              border: platform === p ? "none" : "1px solid var(--border-input)",
-            }}
+            onClick={() => setTokenRevealed(!tokenRevealed)}
+            className="text-[11px] font-semibold transition"
+            style={{ color: "var(--accent)" }}
           >
-            {p}
+            {tokenRevealed ? "Hide Token" : "Show Token"}
           </button>
-        ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type={tokenRevealed ? "text" : "password"}
+            readOnly
+            value={apiToken}
+            className="flex-1 rounded-xl py-2 px-4 text-xs font-mono outline-none border"
+            style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+          />
+          <button
+            onClick={handleCopyToken}
+            className="btn-apple text-xs font-semibold px-5 rounded-xl transition"
+            style={{ background: "var(--accent)", color: "var(--accent-btn-text)", minWidth: 80 }}
+          >
+            {tokenCopied ? "Copied!" : "Copy"}
+          </button>
+        </div>
       </div>
 
-      <SnippetBlock platform={platform} apiToken={apiToken} origin={origin} />
+      {/* Platform Selection */}
+      <div className="space-y-3">
+        <label className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: "var(--text-2)" }}>
+          Step 1: Choose Your Platform
+        </label>
+        <div className="rounded-xl p-1.5 flex flex-wrap gap-1 border" style={{ background: "var(--toggle-bg)", borderColor: "var(--border)" }}>
+          {PLATFORMS.map((p) => (
+            <button
+              key={p}
+              onClick={() => setPlatform(p)}
+              className="btn-apple text-xs font-semibold py-2 px-4 rounded-lg transition flex items-center gap-1.5"
+              style={{
+                background: platform === p ? "var(--card)" : "transparent",
+                color: platform === p ? "var(--text-1)" : "var(--text-2)",
+                boxShadow: platform === p ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              }}
+            >
+              {platform === p && (
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
+              )}
+              {p === "WordPress" ? "WooCommerce / WP" : p}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div
-        className="rounded-xl border p-3 text-xs flex items-start gap-2"
-        style={{ borderColor: "#FFBE32", background: "rgba(255,190,50,0.05)" }}
-      >
-        <span style={{ color: "#FFBE32" }}>!</span>
+      {/* Code Snippets */}
+      <div className="space-y-4">
+        {snippets.map((snippet, i) => (
+          <div key={i}>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs" style={{ color: "var(--text-2)" }}>{snippet.label}</span>
+              <button
+                onClick={() => handleCopySnippet(snippet.code, i)}
+                className="text-[10px] font-semibold transition"
+                style={{ color: "var(--text-3)" }}
+              >
+                {snippetCopiedIdx === i ? "Copied!" : "Copy Snippet"}
+              </button>
+            </div>
+            <pre
+              className="rounded-2xl border p-5 text-xs font-mono leading-relaxed overflow-x-auto"
+              style={{ background: "#0F172A", borderColor: "#1E293B", color: "#CBD5E1" }}
+            >
+              <code>{snippet.code}</code>
+            </pre>
+          </div>
+        ))}
+        {platform === "WordPress" && (
+          <div className="rounded-xl p-4 flex items-center justify-between" style={{ background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.15)" }}>
+            <div className="flex items-center gap-3">
+              <i className="ti ti-download" style={{ color: "var(--accent)", fontSize: 20 }} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>WooCommerce Plugin Package</p>
+                <p className="text-xs" style={{ color: "var(--text-2)" }}>Download a ready-to-install .zip with your token pre-configured</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const content = `<?php
+/**
+ * Plugin Name: Mash Payments for WooCommerce
+ * Description: Accept M-PESA payments via Mash Payments gateway
+ * Version: 1.0.0
+ * Requires Plugins: woocommerce
+ */
+add_action('plugins_loaded', function() {
+    function mash_process_payment(\$order_id) {
+        \$order = wc_get_order(\$order_id);
+        \$phone = \$order->get_billing_phone();
+        \$total = \$order->get_total();
+        \$response = wp_remote_post('${origin}/api/stkpush', [
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'x-token' => '${apiToken}',
+            ],
+            'body' => json_encode([
+                'phone' => \$phone,
+                'amount' => \$total,
+                'reference' => 'WC-' . \$order_id,
+            ]),
+        ]);
+        return json_decode(wp_remote_retrieve_body(\$response), true);
+    }
+});`;
+                const blob = new Blob([content], { type: "application/zip" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "mash-woocommerce.php";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="btn-apple text-xs font-semibold py-2 px-4 rounded-xl transition"
+              style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
+            >
+              Download Plugin
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Callback Warning */}
+      <div className="rounded-xl border p-3 text-xs flex items-start gap-2" style={{ borderColor: "#FFBE32", background: "rgba(255,190,50,0.05)" }}>
+        <i className="ti ti-alert-triangle" style={{ color: "#FFBE32", fontSize: 14, marginTop: 1 }} />
         <span style={{ color: "#FFBE32" }}>
-          Make sure your Callback URL in API Keys Setup is set to your deployed URL.
-          Safaricom cannot reach localhost.
+          Make sure your Callback URL in API Keys Setup is set to your deployed URL. Safaricom cannot reach localhost.
         </span>
       </div>
 
+      {/* Connection Handshake Tracker */}
+      <div
+        className="rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+        style={{
+          background: handshakeDone ? "rgba(0,200,150,0.06)" : "rgba(139,92,246,0.06)",
+          border: `1px solid ${handshakeDone ? "rgba(0,200,150,0.2)" : "rgba(139,92,246,0.2)"}`,
+        }}
+      >
+        <div className="flex items-center gap-3.5">
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${handshakeDone ? "" : "animate-pulse"}`}
+            style={{ background: handshakeDone ? "rgba(0,200,150,0.12)" : "rgba(139,92,246,0.12)", border: `1px solid ${handshakeDone ? "rgba(0,200,150,0.2)" : "rgba(139,92,246,0.2)"}` }}
+          >
+            <i className={`ti ${handshakeDone ? "ti-circle-check" : "ti-bolt"}`} style={{ color: handshakeDone ? "#00C896" : "#8B5CF6", fontSize: 18 }} />
+          </div>
+          <div>
+            <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Connection Handshake Tracker</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>
+              {handshakeDone
+                ? "Your integration is live! The system has received a successful test payload from your servers."
+                : "Your site integration status will display here automatically once your servers send their first test STK payload."}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <span
+            className="text-[10px] font-semibold px-3 py-1.5 rounded-full flex items-center gap-1"
+            style={{ background: handshakeDone ? "rgba(0,200,150,0.1)" : "rgba(139,92,246,0.1)", color: handshakeDone ? "#00C896" : "#8B5CF6" }}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${handshakeDone ? "" : "animate-ping"}`}
+              style={{ background: handshakeDone ? "#00C896" : "#8B5CF6" }}
+            />
+            {handshakeDone ? "Handshake Success!" : "Waiting for payload..."}
+          </span>
+        </div>
+      </div>
+
+      {/* Step 2: Send Test Payment */}
       <SectionLabel>STEP 2: SEND A TEST PAYMENT</SectionLabel>
 
       <p className="text-sm" style={{ color: "var(--text-2)" }}>
-        Enter your own phone number to receive a real test prompt on your phone.
-        We&apos;ll fire a KES 1 push to confirm everything works.
+        Enter your own phone number to receive a real test prompt on your phone. We&apos;ll fire a KES 1 push to confirm everything works.
       </p>
 
       <form onSubmit={handleTestPush} className="flex items-end gap-3">
@@ -1267,32 +1442,10 @@ function InstallTab({
       </form>
 
       {testResult && (
-        <p
-          className="text-sm"
-          style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}
-        >
+        <p className="text-sm" style={{ color: testResult.ok ? "var(--accent)" : "#FF4444" }}>
           {testResult.message}
         </p>
       )}
-    </div>
-  );
-}
-
-function SnippetBlock({ platform, apiToken, origin }: { platform: Platform; apiToken: string; origin: string }) {
-  const snippets = getSnippets(platform, apiToken, origin);
-  return (
-    <div className="space-y-4">
-      {snippets.map((snippet, i) => (
-        <div key={i}>
-          <p className="text-xs mb-2" style={{ color: "var(--text-2)" }}>{snippet.label}</p>
-          <pre
-            className="rounded-xl border p-4 text-xs font-mono leading-relaxed overflow-x-auto"
-            style={{ background: "var(--bg)", borderColor: "var(--border)", color: "var(--text-1)" }}
-          >
-            <code>{snippet.code}</code>
-          </pre>
-        </div>
-      ))}
     </div>
   );
 }
@@ -1303,25 +1456,23 @@ function getSnippets(platform: Platform, token: string, origin: string) {
   const all: Record<Platform, { label: string; code: string }[]> = {
     PHP: [
       {
-        label: "Paste this once into your project",
+        label: "Paste this helper into your backend codebase (cURL — robust, works everywhere)",
         code: `<?php
 function mash_stk_push($phone, $amount, $reference) {
-    $response = file_get_contents(
-        "${url}/api/stkpush",
-        false,
-        stream_context_create([
-            "http" => [
-                "method"  => "POST",
-                "header"  => "Content-Type: application/json\\\\r\\\\n" .
-                             "x-token: ${token}\\\\r\\\\n",
-                "content" => json_encode([
-                    "phone"     => $phone,
-                    "amount"    => $amount,
-                    "reference" => $reference
-                ])
-            ]
-        ])
-    );
+    $ch = curl_init("${url}/api/stkpush");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+        "phone"     => $phone,
+        "amount"    => $amount,
+        "reference" => $reference
+    ]));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Content-Type: application/json",
+        "x-token: ${token}"
+    ]);
+    $response = curl_exec($ch);
+    curl_close($ch);
     return json_decode($response, true);
 }`,
       },

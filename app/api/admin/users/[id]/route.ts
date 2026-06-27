@@ -27,15 +27,35 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { role } = body;
+    const { role, setup_step, is_configured } = body;
 
-    if (!role || !["user", "admin"].includes(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    const updates: Record<string, unknown> = {};
+
+    if (role) {
+      if (!["user", "admin"].includes(role)) {
+        return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+      }
+      updates.role = role;
+    }
+
+    if (setup_step !== undefined) {
+      if (typeof setup_step !== "number" || setup_step < 1 || setup_step > 4) {
+        return NextResponse.json({ error: "Invalid setup_step" }, { status: 400 });
+      }
+      updates.setup_step = setup_step;
+    }
+
+    if (is_configured !== undefined) {
+      updates.is_configured = is_configured;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
     const { error } = await (supabase
       .from("profiles")
-      .update({ role } as never)
+      .update(updates as never)
       .eq("id", params.id) as unknown as Promise<{ error: unknown }>);
 
     if (error) throw error;
