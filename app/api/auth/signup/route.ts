@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         business_name,
         api_token: apiToken,
         setup_step: 1,
+        role: "user",
       } as never) as unknown as Promise<{ error: unknown }>);
     if (profErr) {
       const msg = typeof profErr === "object" && profErr !== null && "message" in profErr

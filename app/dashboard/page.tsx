@@ -13,6 +13,7 @@ interface Profile {
   business_name: string;
   api_token: string;
   setup_step: number;
+  role?: string;
 }
 
 interface Credentials {
@@ -168,6 +169,19 @@ export default function DashboardPage() {
             );
           })}
         </nav>
+
+          {profile?.role === "admin" && (
+            <div className="px-2">
+              <button
+                onClick={() => router.push("/admin")}
+                className="btn-apple w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition text-left"
+                style={{ color: "var(--text-2)" }}
+              >
+                <i className="ti ti-shield" style={{ fontSize: 16 }}></i>
+                <span className="flex-1">Admin Panel</span>
+              </button>
+            </div>
+          )}
 
         <div className="px-4 py-3 border-t space-y-2" style={{ borderColor: "var(--border)" }}>
           <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>
