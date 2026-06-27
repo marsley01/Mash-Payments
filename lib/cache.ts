@@ -19,7 +19,7 @@ export function invalidateCache(pattern?: string): void {
     cache.clear()
     return
   }
-  for (const key of cache.keys()) {
+  cache.forEach((_, key) => {
     if (key.startsWith(pattern)) cache.delete(key)
-  }
+  })
 }

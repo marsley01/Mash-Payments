@@ -7,8 +7,3 @@ export function cachedQuery<T>(
 ): Promise<T> {
   return unstable_cache(fn, tags, { revalidate: revalidateSeconds, tags })()
 }
-
-export function revalidateTags(tags: string[]): void {
-  const { revalidateTag } = require("next/cache")
-  tags.forEach((tag) => revalidateTag(tag))
-}

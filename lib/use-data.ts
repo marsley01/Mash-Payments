@@ -44,7 +44,7 @@ export function useCachedFetch<T>(url: string, ttlMs = 30_000) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [url]);
+  }, [url, ttlMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { data, loading, error, refetch: fetchData };
 }
