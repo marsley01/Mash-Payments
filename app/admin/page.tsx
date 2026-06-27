@@ -476,6 +476,86 @@ function LiveTransactionFeed({ transactions }: { transactions: AdminTransaction[
   );
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+const STEP_LABELS: Record<number, string> = {
+  1: "Verified Signup",
+  2: "Sandbox Bind",
+  3: "First Simulation",
+  4: "Production Active",
+};
+
+const STEP_COLORS: Record<number, { bar: string; text: string; bg: string }> = {
+  1: { bar: "#F59E0B", text: "#F59E0B", bg: "#F59E0B15" },
+  2: { bar: "#3B82F6", text: "#3B82F6", bg: "#3B82F615" },
+  3: { bar: "#8B5CF6", text: "#8B5CF6", bg: "#8B5CF615" },
+  4: { bar: "#00C896", text: "#00C896", bg: "#00C89615" },
+};
+
+function getConfigDiagnostic(user: AdminUser): { label: string; color: string; bg: string; border: string; dot: string } {
+  if (user.setup_step < 2) {
+    return { label: "Unconfigured", color: "var(--text-2)", bg: "var(--toggle-bg)", border: "var(--border-input)", dot: "var(--text-3)" };
+  }
+  if (!user.is_configured) {
+    return { label: "Broken Keys", color: "#FF4444", bg: "#FF444415", border: "#FF444430", dot: "#FF4444" };
+  }
+  if (user.setup_step < 4) {
+    return { label: "Testing", color: "#3B82F6", bg: "#3B82F615", border: "#3B82F630", dot: "#3B82F6" };
+  }
+  return { label: "Live", color: "#00C896", bg: "#00C89615", border: "#00C89630", dot: "#00C896" };
+}
+
+function BillingBadge({ step }: { step: number }) {
+  if (step >= 4) {
+    return (
+      <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: "#00C89615", border: "1px solid #00C89630", color: "#00C896" }}>
+        Scale Tier
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: "var(--toggle-bg)", border: "1px solid var(--border-input)", color: "var(--text-2)" }}>
+      Free Sandbox
+    </span>
+  );
+}
+
+function StepProgress({ step }: { step: number }) {
+  const pct = (step / 4) * 100;
+  const colors = STEP_COLORS[step] || STEP_COLORS[1];
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span style={{ color: colors.text }}>
+          Step {step}/4 &mdash; {STEP_LABELS[step]}
+        </span>
+        <span style={{ color: "var(--text-2)" }}>{pct}%</span>
+      </div>
+      <div className="w-full rounded-full h-1.5" style={{ background: "var(--toggle-bg)" }}>
+        <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: colors.bar }} />
+      </div>
+    </div>
+  );
+}
+
 function UsersTab({
   users,
   updating,
@@ -485,100 +565,229 @@ function UsersTab({
   updating: string | null;
   onToggleRole: (id: string, role: string) => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [stepFilter, setStepFilter] = useState(0);
+
+  const filtered = useMemo(() => {
+    return users.filter((u) => {
+      const q = searchQuery.toLowerCase();
+      if (q && !u.business_name.toLowerCase().includes(q) && !(u.email || "").toLowerCase().includes(q)) {
+        return false;
+      }
+      if (stepFilter > 0 && u.setup_step !== stepFilter) return false;
+      return true;
+    });
+  }, [users, searchQuery, stepFilter]);
+
+  const hudStats = useMemo(() => {
+    const total = users.length;
+    const broken = users.filter((u) => !u.is_configured && u.setup_step >= 2).length;
+    const atStep4 = users.filter((u) => u.setup_step >= 4).length;
+    const funnelHealth = total > 0 ? Math.round((atStep4 / total) * 100) : 0;
+    return { total, broken, funnelHealth };
+  }, [users]);
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold" style={{ color: "var(--text-1)" }}>
-          Users{" "}
-          <span className="text-sm font-normal" style={{ color: "var(--text-2)" }}>
-            ({users.length})
-          </span>
-        </h2>
+    <div className="space-y-6">
+      {/* HUD Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-xl border p-5" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>Total Tenants</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>{hudStats.total}</span>
+            <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>Registered</span>
+          </div>
+        </div>
+        <div className="rounded-xl border p-5" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>Avg. Time to Integration</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>18.4 min</span>
+            <span className="text-xs font-medium" style={{ color: "var(--text-2)" }}>9.2m (API Setup)</span>
+          </div>
+        </div>
+        <div className="rounded-xl border p-5" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>Inactive / Broken Gateways</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-2xl font-bold" style={{ color: "#FF4444" }}>{hudStats.broken}</span>
+            <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ background: "#FF444415", color: "#FF4444" }}>Needs Admin Audit</span>
+          </div>
+        </div>
+        <div className="rounded-xl border p-5" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)", letterSpacing: "0.12em" }}>Overall Funnel Health</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="text-2xl font-bold" style={{ color: hudStats.funnelHealth > 50 ? "var(--accent)" : "#F59E0B" }}>{hudStats.funnelHealth}%</span>
+            <span className="text-xs font-mono" style={{ color: "var(--text-2)" }}>Conv. Rate</span>
+          </div>
+        </div>
       </div>
 
+      {/* Search & Filter Toolbar */}
+      <div className="rounded-xl border p-4 flex flex-col md:flex-row gap-4 items-center justify-between" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full md:w-80">
+            <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 14, color: "var(--text-3)" }}></i>
+            <input
+              type="text"
+              placeholder="Search by Business, Email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-lg border text-sm outline-none transition"
+              style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+            />
+          </div>
+          <select
+            value={stepFilter}
+            onChange={(e) => setStepFilter(Number(e.target.value))}
+            className="rounded-lg py-2 px-3 text-sm border outline-none transition"
+            style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+          >
+            <option value={0}>All Steps (1-4)</option>
+            <option value={1}>Step 1 (Registered Only)</option>
+            <option value={2}>Step 2 (Sandbox Configured)</option>
+            <option value={3}>Step 3 (First Mock Payment)</option>
+            <option value={4}>Step 4 (Production Active)</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-apple text-xs font-semibold py-2 px-3.5 rounded-lg border transition flex items-center gap-1.5"
+            style={{ background: "var(--toggle-bg)", borderColor: "var(--border-input)", color: "var(--text-2)" }}
+          >
+            <i className="ti ti-download" style={{ fontSize: 14 }}></i>
+            Export CSV
+          </button>
+          <button
+            className="btn-apple text-xs font-semibold py-2 px-3.5 rounded-lg transition"
+            style={{ background: "var(--accent)", color: "var(--accent-btn-text)" }}
+          >
+            <i className="ti ti-plus" style={{ fontSize: 14 }}></i>
+            Create Manual Tenant
+          </button>
+        </div>
+      </div>
+
+      {/* Users Table */}
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: "var(--sidebar)" }}>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Business</th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Email</th>
-                <th className="text-center px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Setup</th>
-                <th className="text-center px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Gateway</th>
-                <th className="text-center px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Role</th>
-                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Actions</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Tenant</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Token &amp; Email</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Onboarding Funnel</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Config Diagnostics</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Billing</th>
+                <th className="text-right px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                  <td className="px-4 py-3 font-medium" style={{ color: "var(--text-1)" }}>{u.business_name}</td>
-                  <td className="px-4 py-3" style={{ color: "var(--text-2)" }}>{u.email || "N/A"}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{ background: "var(--accent)15", color: "var(--accent)" }}
-                    >
-                      Step {u.setup_step}/4
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        background: u.is_configured ? "#00C89615" : "#FF444415",
-                        color: u.is_configured ? "#00C896" : "#FF4444",
-                      }}
-                    >
+              {filtered.map((u) => {
+                const diagnostic = getConfigDiagnostic(u);
+                const colors = STEP_COLORS[u.setup_step] || STEP_COLORS[1];
+                const initials = getInitials(u.business_name);
+                const avatarBg = u.is_configured ? `${diagnostic.dot}20` : "var(--toggle-bg)";
+
+                return (
+                  <tr key={u.id} className="border-t hover:opacity-90 transition" style={{ borderColor: "var(--border)" }}>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0"
+                          style={{ background: avatarBg, color: diagnostic.dot }}
+                        >
+                          {initials}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm" style={{ color: "var(--text-1)" }}>{u.business_name}</p>
+                          <p className="text-[11px]" style={{ color: "var(--text-3)" }}>Registered {timeAgo(u.created_at)}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-mono text-xs" style={{ color: "var(--text-2)" }}>
+                        {u.api_token ? `${u.api_token.slice(0, 14)}...` : "\u2014"}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--text-3)" }}>{u.email || "N/A"}</p>
+                    </td>
+                    <td className="px-5 py-4" style={{ minWidth: 220 }}>
+                      <StepProgress step={u.setup_step} />
+                    </td>
+                    <td className="px-5 py-4">
                       <span
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: u.is_configured ? "#00C896" : "#FF4444" }}
-                      />
-                      {u.is_configured ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        background: u.role === "admin" ? "#8B5CF615" : "#3B82F615",
-                        color: u.role === "admin" ? "#8B5CF6" : "#3B82F6",
-                      }}
-                    >
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => onToggleRole(u.id, u.role)}
-                      disabled={updating === u.id}
-                      className="btn-apple text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-                      style={{
-                        background: u.role === "admin" ? "#FF444415" : "#8B5CF615",
-                        color: u.role === "admin" ? "#FF4444" : "#8B5CF6",
-                      }}
-                    >
-                      {updating === u.id ? (
-                        <span className="inline-flex items-center gap-1">
-                          <span
-                            className="w-3 h-3 rounded-full animate-spin"
-                            style={{ border: "1.5px solid currentColor", borderTopColor: "transparent" }}
-                          />
-                          ...
-                        </span>
-                      ) : u.role === "admin" ? (
-                        "Revoke Admin"
-                      ) : (
-                        "Make Admin"
-                      )}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 && (
+                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        style={{ background: diagnostic.bg, color: diagnostic.color, border: `1px solid ${diagnostic.border}` }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: diagnostic.dot }} />
+                        {diagnostic.label}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <BillingBadge step={u.setup_step} />
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {u.setup_step < 2 && (
+                          <button
+                            className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
+                            style={{ background: `${diagnostic.color}15`, color: diagnostic.color }}
+                          >
+                            Send Onboarding Help
+                          </button>
+                        )}
+                        {u.setup_step >= 2 && u.setup_step < 4 && u.is_configured && (
+                          <button
+                            className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
+                            style={{ background: "#8B5CF6", color: "#FFFFFF" }}
+                          >
+                            Approve Production
+                          </button>
+                        )}
+                        {u.setup_step >= 2 && !u.is_configured && (
+                          <button
+                            className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
+                            style={{ background: "#FF444415", color: "#FF4444" }}
+                          >
+                            Resend Keys
+                          </button>
+                        )}
+                        {u.setup_step >= 4 && u.is_configured && (
+                          <>
+                            <button
+                              className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
+                              style={{ background: "#FF444415", color: "#FF4444" }}
+                            >
+                              Revoke API Key
+                            </button>
+                            <button
+                              className="btn-apple text-xs font-semibold py-1.5 px-3 rounded-lg transition"
+                              style={{ background: "var(--toggle-bg)", border: "0.5px solid var(--border-input)", color: "var(--text-2)" }}
+                            >
+                              Audit
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => onToggleRole(u.id, u.role)}
+                          disabled={updating === u.id}
+                          className="btn-apple p-1.5 rounded-lg transition"
+                          style={{ color: "var(--text-3)" }}
+                          title={u.role === "admin" ? "Revoke Admin" : "Make Admin"}
+                        >
+                          {updating === u.id ? (
+                            <span className="w-4 h-4 rounded-full animate-spin block" style={{ border: "1.5px solid currentColor", borderTopColor: "transparent" }} />
+                          ) : (
+                            <i className="ti ti-adjustments-horizontal" style={{ fontSize: 16 }} />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-3)" }}>
-                    No users found
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm" style={{ color: "var(--text-3)" }}>
+                    {searchQuery || stepFilter > 0 ? "No users match your search criteria" : "No users found"}
                   </td>
                 </tr>
               )}
