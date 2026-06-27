@@ -258,6 +258,7 @@ export default function DashboardPage() {
             setupStep={setupStep}
             onGoTo={(tab) => setActiveTab(tab)}
             isConfigured={isConfiguredBool}
+            accessToken={accessToken}
           />
         )}
         {activeTab === "keys" && (
@@ -338,38 +339,118 @@ function OverviewTab({
   setupStep,
   onGoTo,
   isConfigured,
+  accessToken,
 }: {
   transactions: Transaction[];
   setupStep: number;
   onGoTo: (tab: Tab) => void;
   isConfigured: boolean;
+  accessToken: string;
 }) {
   const totalCount = transactions.length;
   const successfulCount = transactions.filter((t) => t.status === "SUCCESS").length;
   const totalVolume = transactions
     .filter((t) => t.status === "SUCCESS")
     .reduce((sum, t) => sum + Number(t.amount), 0);
+  const successRate = totalCount > 0 ? Math.round((successfulCount / totalCount) * 100) : 0;
 
-  const recent = transactions.slice(0, 5);
+  const pendingCount = transactions.filter((t) => t.status === "PENDING").length;
+  const hasStuckPending = pendingCount > 0 && isConfigured;
+  const recent = transactions.slice(0, 10);
+
+  const [playPhone, setPlayPhone] = useState("");
+  const [playAmount, setPlayAmount] = useState("1");
+  const [sending, setSending] = useState(false);
+  const [playResult, setPlayResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   let nextStep: { label: string; tab: Tab } | null = null;
   if (!isConfigured) nextStep = { label: "Save your Daraja keys", tab: "keys" };
   else if (setupStep < 4) nextStep = { label: "Send a test payment", tab: "install" };
 
+  async function handlePlaygroundPush(e: React.FormEvent) {
+    e.preventDefault();
+    if (!playPhone) return;
+    setSending(true);
+    setPlayResult(null);
+    try {
+      const res = await fetch("/api/test-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ phone: playPhone, amount: Number(playAmount) || 1 }),
+      });
+      const data = await res.json();
+      setPlayResult(
+        data.success
+          ? { ok: true, message: "Prompt sent! Check your phone for the M-PESA SIM push." }
+          : { ok: false, message: data.error || data.message || "Push failed — verify your Daraja keys" }
+      );
+    } catch {
+      setPlayResult({ ok: false, message: "Network error. Try again." });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const webhookStatus = !isConfigured
+    ? { label: "Unconfigured", color: "var(--text-2)", bg: "var(--toggle-bg)" }
+    : hasStuckPending
+      ? { label: "Warning", color: "#F59E0B", bg: "#F59E0B15" }
+      : { label: "Healthy", color: "#00C896", bg: "#00C89615" };
+
+  function statusContext(status: string): string {
+    switch (status) {
+      case "PENDING":
+        return "Awaiting User PIN entry...";
+      case "FAILED":
+        return "Payment declined by user or network";
+      case "SUCCESS":
+        return "Callback received and verified";
+      default:
+        return "";
+    }
+  }
+
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-6xl space-y-6">
       <SectionLabel>Overview</SectionLabel>
 
-      <div className="grid grid-cols-3 gap-4">
+      {/* 4 KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Transactions" value={String(totalCount)} />
-        <StatCard label="Successful Payments" value={String(successfulCount)} color="var(--accent)" />
+        <StatCard
+          label="Successful Payments"
+          value={successRate > 0 ? `${successfulCount} (${successRate}%)` : String(successfulCount)}
+          color="var(--accent)"
+        />
         <StatCard
           label="Total Volume"
           value={`KES ${totalVolume.toLocaleString()}`}
           color="var(--accent)"
         />
+        <div
+          className="rounded-xl border p-4"
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
+        >
+          <p className="text-xs mb-1" style={{ color: "var(--text-2)" }}>Client Webhook Health</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-xl font-bold" style={{ color: webhookStatus.color }}>
+              {webhookStatus.label}
+            </p>
+            {hasStuckPending && (
+              <span className="text-[10px] font-mono font-medium" style={{ color: "#FF4444" }}>
+                Unreachable
+              </span>
+            )}
+            {isConfigured && !hasStuckPending && (
+              <span className="text-[10px]" style={{ color: "var(--text-3)" }}>
+                {totalCount > 0 ? `${successRate}% delivery` : "Awaiting traffic"}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
+      {/* Next Step Banner */}
       {nextStep && (
         <div
           className="rounded-xl p-4 flex items-center justify-between"
@@ -392,46 +473,229 @@ function OverviewTab({
         </div>
       )}
 
-      {setupStep >= 4 && (
+      {/* Diagnostic Warning */}
+      {hasStuckPending && (
         <div
-          className="rounded-xl border"
-          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
+          className="rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+          style={{ background: "#F59E0B10", border: "1px solid #F59E0B30" }}
         >
-          <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-            <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Recent Transactions</p>
+          <div className="flex items-start gap-3">
+            <i className="ti ti-alert-triangle" style={{ color: "#F59E0B", fontSize: 18, marginTop: 2, flexShrink: 0 }}></i>
+            <div>
+              <p className="text-sm font-bold" style={{ color: "#F59E0B" }}>Integration Status Alert: Stuck Webhooks Detected</p>
+              <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-2)" }}>
+                Your test transactions are remaining <strong>PENDING</strong> because your local checkout environment may not be receiving Safaricom&apos;s server callbacks. Ensure your webhook listener URL matches your deployed host.
+              </p>
+            </div>
           </div>
-          {recent.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-2)" }}>No transactions yet</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs" style={{ color: "var(--text-2)", borderColor: "var(--border)" }}>
-                  <th className="text-left px-4 py-2 font-medium">Time</th>
-                  <th className="text-left px-4 py-2 font-medium">Phone</th>
-                  <th className="text-right px-4 py-2 font-medium">Amount</th>
-                  <th className="text-left px-4 py-2 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((tx) => (
-                  <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                    <td className="px-4 py-2.5 text-xs" style={{ color: "var(--text-2)" }}>
-                      {new Date(tx.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5">{tx.phone}</td>
-                    <td className="px-4 py-2.5 text-right font-mono">
-                      {Number(tx.amount).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <StatusDot status={tx.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => onGoTo("install")}
+              className="btn-apple text-xs font-semibold py-2 px-3.5 rounded-lg transition"
+              style={{ background: "var(--toggle-bg)", border: "0.5px solid var(--border-input)", color: "var(--text-1)" }}
+            >
+              Test Connection
+            </button>
+            <button
+              onClick={() => onGoTo("keys")}
+              className="btn-apple text-xs font-semibold py-2 px-3.5 rounded-lg transition"
+              style={{ background: "#F59E0B", color: "#0A0A0A" }}
+            >
+              Fix Webhook URL
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Transactions Table */}
+        <div
+          className="lg:col-span-2 rounded-xl border flex flex-col"
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
+        >
+          <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Recent Transactions</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-2)" }}>Real-time STK prompts mapped to customer checkout attempts</p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: "var(--toggle-bg)", color: "var(--text-2)" }}>
+              {totalCount} {totalCount === 1 ? "entry" : "entries"}
+            </span>
+          </div>
+
+          {recent.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center py-12">
+              <div className="text-center">
+                <i className="ti ti-device-mobile" style={{ fontSize: 36, color: "var(--text-3)" }}></i>
+                <p className="text-sm mt-2" style={{ color: "var(--text-2)" }}>No transactions yet</p>
+                <p className="text-xs mt-1" style={{ color: "var(--text-3)" }}>
+                  {isConfigured ? "Use the playground to send your first test STK push" : "Complete your API key setup first"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs" style={{ color: "var(--text-2)", borderColor: "var(--border)" }}>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Time</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Phone</th>
+                    <th className="text-right px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Amount</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Status</th>
+                    <th className="text-right px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((tx) => (
+                    <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                      <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-2)" }}>
+                        {new Date(tx.created_at).toLocaleString()}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-xs" style={{ color: "var(--text-1)" }}>
+                        {tx.phone}
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-semibold" style={{ color: "var(--text-1)" }}>
+                        KES {Number(tx.amount).toLocaleString()}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex flex-col gap-0.5">
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold w-fit"
+                            style={{
+                              background: tx.status === "SUCCESS" ? "#00C89615" : tx.status === "PENDING" ? "#F59E0B15" : "#FF444415",
+                              color: tx.status === "SUCCESS" ? "#00C896" : tx.status === "PENDING" ? "#F59E0B" : "#FF4444",
+                              border: `1px solid ${
+                                tx.status === "SUCCESS" ? "#00C89630" : tx.status === "PENDING" ? "#F59E0B30" : "#FF444430"
+                              }`,
+                            }}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${tx.status === "PENDING" ? "animate-pulse" : ""}`}
+                              style={{
+                                background: tx.status === "SUCCESS" ? "#00C896" : tx.status === "PENDING" ? "#F59E0B" : "#FF4444",
+                              }}
+                            />
+                            {tx.status}
+                          </span>
+                          {tx.status !== "SUCCESS" && (
+                            <span className="text-[10px]" style={{ color: "var(--text-3)" }}>
+                              {statusContext(tx.status)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <button
+                          className="btn-apple text-[10px] font-semibold py-1 px-2.5 rounded border transition"
+                          style={{ background: "var(--toggle-bg)", borderColor: "var(--border-input)", color: "var(--text-2)" }}
+                          title="Repush STK Prompt"
+                        >
+                          Repush
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Table Footer */}
+          <div
+            className="px-5 py-3 border-t text-xs flex items-center justify-between"
+            style={{ background: "var(--toggle-bg)", borderColor: "var(--border)" }}
+          >
+            <span style={{ color: "var(--text-3)" }}>Stuck with pending transactions?</span>
+            <button
+              onClick={() => onGoTo("install")}
+              className="font-semibold flex items-center gap-1 transition"
+              style={{ color: "var(--accent)" }}
+            >
+              Read the Integration Webhook Guide
+              <i className="ti ti-chevron-right" style={{ fontSize: 12 }} />
+            </button>
+          </div>
+        </div>
+
+        {/* Playground */}
+        <div
+          className="lg:col-span-1 rounded-xl border p-5 flex flex-col"
+          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
+        >
+          <div>
+            <h3 className="font-bold text-sm" style={{ color: "var(--text-1)" }}>Instant Checkout Playground</h3>
+            <p className="text-xs mt-0.5 mb-5" style={{ color: "var(--text-2)" }}>
+              Validate your configuration by sending a test STK push immediately.
+            </p>
+
+            <form onSubmit={handlePlaygroundPush} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-2)" }}>
+                  Your Mobile Phone
+                </label>
+                <input
+                  type="text"
+                  placeholder="0712 345 678"
+                  value={playPhone}
+                  onChange={(e) => setPlayPhone(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-lg border text-sm font-mono outline-none transition"
+                  style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-2)" }}>
+                  Charge Amount (KES)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={playAmount}
+                  onChange={(e) => setPlayAmount(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border text-sm font-mono outline-none transition"
+                  style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={sending || !isConfigured}
+                className="btn-apple w-full font-semibold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-1.5"
+                style={{ background: isConfigured ? "var(--accent)" : "var(--toggle-bg)", color: isConfigured ? "var(--accent-btn-text)" : "var(--text-3)", border: isConfigured ? "none" : "0.5px solid var(--border-input)" }}
+              >
+                {sending ? (
+                  <>
+                    <span className="w-3.5 h-3.5 rounded-full animate-spin block" style={{ border: "1.5px solid currentColor", borderTopColor: "transparent" }} />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <i className="ti ti-bolt" style={{ fontSize: 14 }} />
+                    Dispatch Interactive Prompt
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {playResult && (
+            <div
+              className="rounded-xl px-3 py-2.5 mt-4 flex items-start gap-2 animate-fade-up"
+              style={{
+                background: playResult.ok ? "rgba(0,200,150,0.08)" : "rgba(255,68,68,0.08)",
+                border: `1px solid ${playResult.ok ? "var(--accent)" : "#FF4444"}`,
+              }}
+            >
+              <i className={`ti ${playResult.ok ? "ti-circle-check" : "ti-alert-circle"}`} style={{ color: playResult.ok ? "var(--accent)" : "#FF4444", fontSize: 14, marginTop: 1 }}></i>
+              <p className="text-xs" style={{ color: playResult.ok ? "var(--accent)" : "#FF4444" }}>
+                {playResult.message}
+              </p>
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }
