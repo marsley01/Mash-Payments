@@ -23,7 +23,9 @@ export default function RootLayout({
       <head>
         <link
           rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css"
+          href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css"
+          integrity="sha384-UhP1PxYTLdO9FYyUB3j+d3Y3zE9jqN+rZqMc/gNPZDnyGJi2MLgDYKN3x8aj5K9"
+          crossOrigin="anonymous"
         />
       </head>
       <body className={`${jakarta.variable} font-sans antialiased`}>

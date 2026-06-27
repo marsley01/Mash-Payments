@@ -24,23 +24,23 @@ export async function GET(request: NextRequest) {
     .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
 
   if (error) {
-    const msg = typeof error === "object" && error !== null && "message" in error
-      ? String((error as Record<string, unknown>).message)
-      : "Database error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch settings" }, { status: 500 });
   }
 
   if (!creds) {
     return NextResponse.json({ config: null });
   }
 
-  const secret = creds.consumer_secret || "";
-  const masked = secret.length > 6
-    ? "*".repeat(secret.length - 6) + secret.slice(-6)
-    : "*".repeat(secret.length);
+  const masked = (s: string) =>
+    s.length > 6 ? "*".repeat(6) + s.slice(-6) : "*".repeat(s.length);
 
   return NextResponse.json({
-    config: { ...creds, consumer_secret: masked, full_secret: undefined },
+    config: {
+      ...creds,
+      consumer_secret: masked(creds.consumer_secret || ""),
+      consumer_key: masked(creds.consumer_key || ""),
+      passkey: masked(creds.passkey || ""),
+    },
   });
 }
 

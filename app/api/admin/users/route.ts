@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
     id: p.id,
     email: userMap.get(p.id) || null,
     business_name: p.business_name,
-    api_token: p.api_token,
+    api_token: p.api_token
+      ? p.api_token.slice(0, 10) + "..." + p.api_token.slice(-4)
+      : null,
     setup_step: p.setup_step,
     role: p.role || "user",
     is_configured: p.daraja_credentials?.[0]?.is_configured || false,

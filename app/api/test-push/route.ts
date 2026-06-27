@@ -28,12 +28,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const phone = body.phone;
-    const amount = body.amount || 1;
+    let phone = body.phone;
+    let amount = body.amount || 1;
     const reference = "MASH-TEST";
 
     if (!phone) {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+    }
+
+    phone = String(phone).replace(/\s+/g, "");
+    if (!/^(\+?254|0)?[17]\d{8}$/.test(phone)) {
+      return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
+    }
+
+    amount = Number(amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 150000) {
+      return NextResponse.json({ error: "Amount must be between 1 and 150,000" }, { status: 400 });
     }
 
     const result = await sendSTKPush(
