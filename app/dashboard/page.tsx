@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -1663,8 +1663,56 @@ function TransactionsTab({
   transactions: Transaction[];
   onGoToInstall: () => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const filtered = useMemo(() => {
+    return transactions.filter((tx) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!tx.phone.toLowerCase().includes(q) && !(tx.reference || "").toLowerCase().includes(q) && !(tx.mpesa_receipt || "").toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      if (statusFilter && tx.status !== statusFilter) return false;
+      return true;
+    });
+  }, [transactions, searchQuery, statusFilter]);
+
+  const totalVolume = filtered
+    .filter((t) => t.status === "SUCCESS")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const successRate = filtered.length > 0
+    ? Math.round((filtered.filter((t) => t.status === "SUCCESS").length / filtered.length) * 100)
+    : 0;
+
+  function formatDateTime(dateStr: string) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }) +
+      ", " + d.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function statusPill(status: string) {
+    const config: Record<string, { bg: string; color: string; border: string; label: string }> = {
+      SUCCESS: { bg: "#00C89615", color: "#00C896", border: "#00C89630", label: "Success" },
+      PENDING: { bg: "#F59E0B15", color: "#F59E0B", border: "#F59E0B30", label: "Pending" },
+      FAILED: { bg: "#FF444415", color: "#FF4444", border: "#FF444430", label: "Failed" },
+    };
+    const c = config[status] || config.PENDING;
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+        style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${status === "PENDING" ? "animate-pulse" : ""}`} style={{ background: c.color }} />
+        {c.label}
+      </span>
+    );
+  }
+
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-6xl space-y-6">
       <SectionLabel>Transactions</SectionLabel>
 
       {transactions.length === 0 ? (
@@ -1689,47 +1737,91 @@ function TransactionsTab({
           </button>
         </div>
       ) : (
-        <div
-          className="rounded-xl border overflow-hidden"
-          style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs" style={{ color: "var(--text-2)", borderColor: "var(--border)" }}>
-                  <th className="text-left px-4 py-3 font-medium">Time</th>
-                  <th className="text-left px-4 py-3 font-medium">Phone</th>
-                  <th className="text-right px-4 py-3 font-medium">Amount (KES)</th>
-                  <th className="text-left px-4 py-3 font-medium">Reference</th>
-                  <th className="text-left px-4 py-3 font-medium">M-PESA Receipt</th>
-                  <th className="text-left px-4 py-3 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr
-                    key={tx.id}
-                    className="border-t text-sm"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--text-2)" }}>
-                      {new Date(tx.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">{tx.phone}</td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {Number(tx.amount).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">{tx.reference || "\u2014"}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{tx.mpesa_receipt || "\u2014"}</td>
-                    <td className="px-4 py-3">
-                      <StatusDot status={tx.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Summary Bar */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-xl border p-4" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Total Entries</p>
+              <p className="text-xl font-bold mt-1" style={{ color: "var(--text-1)" }}>{filtered.length}</p>
+            </div>
+            <div className="rounded-xl border p-4" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Success Rate</p>
+              <p className="text-xl font-bold mt-1" style={{ color: "var(--accent)" }}>{successRate}%</p>
+            </div>
+            <div className="rounded-xl border p-4" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Settled Volume</p>
+              <p className="text-xl font-bold mt-1" style={{ color: "var(--text-1)" }}>KES {totalVolume.toLocaleString()}</p>
+            </div>
           </div>
-        </div>
+
+          {/* Search & Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="relative flex-1 max-w-xs">
+              <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 14, color: "var(--text-3)" }}></i>
+              <input
+                type="text"
+                placeholder="Search by phone, reference, receipt..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-lg border text-sm outline-none transition"
+                style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg py-2 px-3 text-sm border outline-none transition"
+              style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+            >
+              <option value="">All Statuses</option>
+              <option value="SUCCESS">Success</option>
+              <option value="PENDING">Pending</option>
+              <option value="FAILED">Failed</option>
+            </select>
+          </div>
+
+          {/* Table */}
+          <div className="rounded-xl border overflow-hidden" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs" style={{ color: "var(--text-2)", borderColor: "var(--border)" }}>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Date &amp; Time</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Phone</th>
+                    <th className="text-right px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Amount</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Reference</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Receipt</th>
+                    <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-5 py-12 text-center text-sm" style={{ color: "var(--text-3)" }}>
+                        No transactions match your search
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((tx) => (
+                      <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                        <td className="px-5 py-3 text-xs whitespace-nowrap" style={{ color: "var(--text-2)" }}>
+                          {formatDateTime(tx.created_at)}
+                        </td>
+                        <td className="px-5 py-3 font-mono text-xs" style={{ color: "var(--text-1)" }}>{tx.phone}</td>
+                        <td className="px-5 py-3 text-right font-semibold" style={{ color: "var(--text-1)" }}>
+                          KES {Number(tx.amount).toLocaleString()}
+                        </td>
+                        <td className="px-5 py-3 text-xs font-mono" style={{ color: "var(--text-2)" }}>{tx.reference || "\u2014"}</td>
+                        <td className="px-5 py-3 text-xs font-mono" style={{ color: "var(--text-2)" }}>{tx.mpesa_receipt || "\u2014"}</td>
+                        <td className="px-5 py-3">{statusPill(tx.status)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -909,57 +909,144 @@ function UsersTab({
 }
 
 function TransactionsTab({ transactions }: { transactions: AdminTransaction[] }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const filtered = useMemo(() => {
+    return transactions.filter((tx) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchesSearch =
+          (tx.phone || "").toLowerCase().includes(q) ||
+          (tx.business_name || "").toLowerCase().includes(q) ||
+          (tx.mpesa_receipt || "").toLowerCase().includes(q) ||
+          (tx.reference || "").toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+      if (statusFilter && tx.status !== statusFilter) return false;
+      return true;
+    });
+  }, [transactions, searchQuery, statusFilter]);
+
+  const totalVolume = filtered
+    .filter((t) => t.status === "SUCCESS")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const successRate = filtered.length > 0
+    ? Math.round((filtered.filter((t) => t.status === "SUCCESS").length / filtered.length) * 100)
+    : 0;
+
+  const totalBusinesses = new Set(filtered.map((t) => t.business_name)).size;
+
+  function formatFullDate(dateStr: string) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }) +
+      ", " + d.toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function statusPill(status: string) {
+    const config: Record<string, { bg: string; color: string; border: string; label: string }> = {
+      SUCCESS: { bg: "#00C89615", color: "#00C896", border: "#00C89630", label: "Success" },
+      PENDING: { bg: "#F59E0B15", color: "#F59E0B", border: "#F59E0B30", label: "Pending" },
+      FAILED: { bg: "#FF444415", color: "#FF4444", border: "#FF444430", label: "Failed" },
+    };
+    const c = config[status] || config.PENDING;
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+        style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${status === "PENDING" ? "animate-pulse" : ""}`} style={{ background: c.color }} />
+        {c.label}
+      </span>
+    );
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold" style={{ color: "var(--text-1)" }}>
-          Transactions{" "}
+          All Transactions{" "}
           <span className="text-sm font-normal" style={{ color: "var(--text-2)" }}>
-            ({transactions.length})
+            ({filtered.length}{searchQuery || statusFilter ? ` / ${transactions.length}` : ""})
           </span>
         </h2>
       </div>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <div className="rounded-xl border p-4" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Settled Volume</p>
+          <p className="text-xl font-bold mt-1" style={{ color: "var(--text-1)" }}>{formatKES(totalVolume)}</p>
+        </div>
+        <div className="rounded-xl border p-4" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Success Rate</p>
+          <p className="text-xl font-bold mt-1" style={{ color: "var(--accent)" }}>{successRate}%</p>
+        </div>
+        <div className="rounded-xl border p-4" style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Businesses</p>
+          <p className="text-xl font-bold mt-1" style={{ color: "var(--text-1)" }}>{totalBusinesses}</p>
+        </div>
+      </div>
+
+      {/* Search & Filter */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-start sm:items-center">
+        <div className="relative flex-1 max-w-xs">
+          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2" style={{ fontSize: 14, color: "var(--text-3)" }}></i>
+          <input
+            type="text"
+            placeholder="Search by phone, business, receipt..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 rounded-lg border text-sm outline-none transition"
+            style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg py-2 px-3 text-sm border outline-none transition"
+          style={{ background: "var(--bg)", borderColor: "var(--border-input)", color: "var(--text-1)" }}
+        >
+          <option value="">All Statuses</option>
+          <option value="SUCCESS">Success</option>
+          <option value="PENDING">Pending</option>
+          <option value="FAILED">Failed</option>
+        </select>
+      </div>
+
+      {/* Table */}
       <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: "var(--sidebar)" }}>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Date</th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Business</th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Phone</th>
-                <th className="text-right px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Amount</th>
-                <th className="text-center px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Status</th>
-                <th className="text-left px-4 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Receipt</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Date</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Business</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Phone</th>
+                <th className="text-right px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Amount</th>
+                <th className="text-center px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Status</th>
+                <th className="text-left px-5 py-3 font-semibold text-[11px] uppercase tracking-wider" style={{ color: "var(--text-2)" }}>Receipt</th>
               </tr>
             </thead>
             <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                  <td className="px-4 py-3 text-xs" style={{ color: "var(--text-2)" }}>{formatDate(tx.created_at)}</td>
-                  <td className="px-4 py-3 font-medium" style={{ color: "var(--text-1)" }}>{tx.business_name || "Unknown"}</td>
-                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-2)" }}>{tx.phone}</td>
-                  <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--text-1)" }}>{formatKES(tx.amount)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        background: tx.status === "SUCCESS" ? "#00C89615" : tx.status === "FAILED" ? "#FF444415" : "#F59E0B15",
-                        color: tx.status === "SUCCESS" ? "#00C896" : tx.status === "FAILED" ? "#FF4444" : "#F59E0B",
-                      }}
-                    >
-                      {tx.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-2)" }}>{tx.mpesa_receipt || "\u2014"}</td>
-                </tr>
-              ))}
-              {transactions.length === 0 && (
+              {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-3)" }}>
-                    No transactions yet
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm" style={{ color: "var(--text-3)" }}>
+                    {searchQuery || statusFilter ? "No transactions match your filters" : "No transactions yet"}
                   </td>
                 </tr>
+              ) : (
+                filtered.map((tx) => (
+                  <tr key={tx.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                    <td className="px-5 py-3 text-xs whitespace-nowrap" style={{ color: "var(--text-2)" }}>{formatFullDate(tx.created_at)}</td>
+                    <td className="px-5 py-3 font-medium text-sm" style={{ color: "var(--text-1)" }}>{tx.business_name || "Unknown"}</td>
+                    <td className="px-5 py-3 font-mono text-xs" style={{ color: "var(--text-2)" }}>{tx.phone}</td>
+                    <td className="px-5 py-3 text-right font-semibold" style={{ color: "var(--text-1)" }}>{formatKES(tx.amount)}</td>
+                    <td className="px-5 py-3 text-center">{statusPill(tx.status)}</td>
+                    <td className="px-5 py-3 font-mono text-xs" style={{ color: "var(--text-2)" }}>{tx.mpesa_receipt || "\u2014"}</td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
