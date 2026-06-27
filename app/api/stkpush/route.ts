@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         message: result.errorMessage || result.ResponseDescription || "STK push failed",
-        error: result,
+        ...(result.ResponseCode !== "0" && { detail: result }),
       },
       { status: 500 }
     );

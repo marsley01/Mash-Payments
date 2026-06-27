@@ -16,15 +16,22 @@ export async function getOAuthToken(
     headers: { Authorization: `Basic ${auth}` },
   });
 
+  const bodyText = await res.text();
+
   let data: any;
   try {
-    data = await res.json();
+    data = JSON.parse(bodyText);
   } catch {
-    throw new Error(`OAuth failed (HTTP ${res.status}): non-JSON response from ${url}`);
+    const snippet = bodyText.slice(0, 300);
+    throw new Error(
+      `OAuth failed (HTTP ${res.status}): unexpected response — ${snippet}`
+    );
   }
 
   if (!data.access_token) {
-    throw new Error(data.error_description || `OAuth failed (HTTP ${res.status})`);
+    throw new Error(
+      data.error_description || `OAuth failed (HTTP ${res.status}) — ${JSON.stringify(data)}`
+    );
   }
   return data.access_token as string;
 }
@@ -94,13 +101,16 @@ export async function sendSTKPush(
     body: JSON.stringify(payload),
   });
 
+  const bodyText = await res.text();
+
   let data: any;
   try {
-    data = await res.json();
+    data = JSON.parse(bodyText);
   } catch {
+    const snippet = bodyText.slice(0, 400);
     return {
       ResponseCode: "1",
-      errorMessage: `STK push failed (HTTP ${res.status}): non-JSON response from Safaricom`,
+      errorMessage: `STK push failed (HTTP ${res.status}): unexpected response — ${snippet}`,
       ResponseDescription: `Gateway returned HTTP ${res.status}. Check your shortcode, passkey, and callback URL.`,
     };
   }
