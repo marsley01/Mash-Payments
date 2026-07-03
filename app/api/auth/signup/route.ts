@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 function generateToken(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let i = 0; i < 16; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return "mash_live_" + result;
+  const bytes = randomBytes(24);
+  return "mash_live_" + bytes.toString("hex");
 }
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!checkRateLimit("signup:" + ip, 5, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const body = await request.json();
     const { name, business_name, email, password } = body;
@@ -46,12 +49,10 @@ export async function POST(request: NextRequest) {
         business_name,
         api_token: apiToken,
         setup_step: 1,
+        role: "user",
       } as never) as unknown as Promise<{ error: unknown }>);
     if (profErr) {
-      const msg = typeof profErr === "object" && profErr !== null && "message" in profErr
-        ? String((profErr as Record<string, unknown>).message)
-        : "Profile creation failed";
-      return NextResponse.json({ error: msg }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
     }
 
     const { error: credErr } = await (supabase
@@ -61,17 +62,11 @@ export async function POST(request: NextRequest) {
         is_configured: false,
       } as never) as unknown as Promise<{ error: unknown }>);
     if (credErr) {
-      const msg = typeof credErr === "object" && credErr !== null && "message" in credErr
-        ? String((credErr as Record<string, unknown>).message)
-        : "Credentials row creation failed";
-      return NextResponse.json({ error: msg }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, api_token: apiToken, email, password });
-  } catch (err: unknown) {
-    const message = typeof err === "object" && err !== null && "message" in err
-      ? String((err as Record<string, unknown>).message)
-      : "Internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ success: true, api_token: apiToken, email });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

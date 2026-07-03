@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { data: profile, error: profileErr } = await (supabase
     .from("profiles")
-    .select("id, business_name, api_token, setup_step, created_at")
+    .select("id, business_name, api_token, setup_step, role, created_at")
     .eq("id", user.id)
     .maybeSingle() as unknown as Promise<{ data: any; error: unknown }>);
 

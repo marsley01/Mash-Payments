@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendSTKPush } from "@/lib/daraja";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!checkRateLimit("stkpush:" + ip, 10, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const token = request.headers.get("x-token");
     if (!token) {
@@ -40,13 +46,27 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { phone, amount, reference } = body;
+    let { phone, amount, reference } = body;
 
     if (!phone || !amount || !reference) {
       return NextResponse.json(
         { error: "phone, amount, and reference are required" },
         { status: 400 }
       );
+    }
+
+    phone = String(phone).replace(/\s+/g, "");
+    if (!/^(\+?254|0)?[17]\d{8}$/.test(phone)) {
+      return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
+    }
+
+    amount = Number(amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 150000) {
+      return NextResponse.json({ error: "Amount must be between 1 and 150,000" }, { status: 400 });
+    }
+
+    if (typeof reference !== "string" || reference.length > 100) {
+      return NextResponse.json({ error: "Invalid reference" }, { status: 400 });
     }
 
     const result = await sendSTKPush(
@@ -93,11 +113,15 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         message: result.errorMessage || result.ResponseDescription || "STK push failed",
-        error: result,
+        ...(result.ResponseCode !== "0" && { detail: result }),
       },
       { status: 500 }
     );
-  } catch {
-    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  } catch (err: unknown) {
+    const message =
+      typeof err === "object" && err !== null && "message" in err
+        ? String((err as Record<string, unknown>).message)
+        : "Internal server error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -1,0 +1,25 @@
+const cache = new Map<string, { data: unknown; expiry: number }>()
+
+export function getCached<T>(key: string): T | null {
+  const entry = cache.get(key)
+  if (!entry) return null
+  if (Date.now() > entry.expiry) {
+    cache.delete(key)
+    return null
+  }
+  return entry.data as T
+}
+
+export function setCache<T>(key: string, data: T, ttlMs = 30_000): void {
+  cache.set(key, { data, expiry: Date.now() + ttlMs })
+}
+
+export function invalidateCache(pattern?: string): void {
+  if (!pattern) {
+    cache.clear()
+    return
+  }
+  cache.forEach((_, key) => {
+    if (key.startsWith(pattern)) cache.delete(key)
+  })
+}

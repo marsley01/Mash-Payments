@@ -16,9 +16,22 @@ export async function getOAuthToken(
     headers: { Authorization: `Basic ${auth}` },
   });
 
-  const data = await res.json();
+  const bodyText = await res.text();
+
+  let data: any;
+  try {
+    data = JSON.parse(bodyText);
+  } catch {
+    const snippet = bodyText.slice(0, 300);
+    throw new Error(
+      `OAuth failed (HTTP ${res.status}): unexpected response — ${snippet}`
+    );
+  }
+
   if (!data.access_token) {
-    throw new Error(data.error_description || "Failed to get OAuth token");
+    throw new Error(
+      data.error_description || `OAuth failed (HTTP ${res.status}) — ${JSON.stringify(data)}`
+    );
   }
   return data.access_token as string;
 }
@@ -88,5 +101,19 @@ export async function sendSTKPush(
     body: JSON.stringify(payload),
   });
 
-  return res.json();
+  const bodyText = await res.text();
+
+  let data: any;
+  try {
+    data = JSON.parse(bodyText);
+  } catch {
+    const snippet = bodyText.slice(0, 400);
+    return {
+      ResponseCode: "1",
+      errorMessage: `STK push failed (HTTP ${res.status}): unexpected response — ${snippet}`,
+      ResponseDescription: `Gateway returned HTTP ${res.status}. Check your shortcode, passkey, and callback URL.`,
+    };
+  }
+
+  return data;
 }
