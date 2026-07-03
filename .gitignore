@@ -36,5 +36,9 @@ next-env.d.ts
 
 .vercel
 
+# Go backend
+/backend/bin/
+/backend/tmp/
+
 # scripts
 /scripts/
