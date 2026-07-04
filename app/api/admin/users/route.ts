@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  const { data: authData } = await supabase.auth.admin.listUsers();
+  const { data: authData } = await (supabase.auth as any).admin.listUsers();
   const userMap = new Map((authData?.users || []).map((u: any) => [u.id, u.email]));
 
   const users = (profiles || []).map((p: any) => ({

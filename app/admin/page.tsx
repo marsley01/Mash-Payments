@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -67,10 +67,11 @@ export default function AdminPage() {
   const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const supabase = getBrowserSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       if (!session) {
         router.push("/auth");
         return;
@@ -79,7 +80,7 @@ export default function AdminPage() {
       setSessionChecked(true);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = (supabase.auth as any).onAuthStateChange((event: string) => {
       if (event === "SIGNED_OUT") router.push("/auth");
     });
 
@@ -107,18 +108,24 @@ export default function AdminPage() {
     if (!adminChecked || !accessToken) return;
     fetchAdminData();
     const interval = setInterval(fetchAdminData, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, [adminChecked, accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchAdminData() {
     if (!accessToken) return;
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
     const headers = { Authorization: `Bearer ${accessToken}` };
     setLoading(true);
 
     const [statsRes, usersRes, txRes] = await Promise.all([
-      fetch("/api/admin/stats", { headers }),
-      fetch("/api/admin/users", { headers }),
-      fetch("/api/admin/transactions", { headers }),
+      fetch("/api/admin/stats", { headers, signal }),
+      fetch("/api/admin/users", { headers, signal }),
+      fetch("/api/admin/transactions", { headers, signal }),
     ]);
 
     const statsData = await statsRes.json();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase";
 
@@ -14,6 +14,7 @@ export default function AuthPage() {
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -21,9 +22,12 @@ export default function AuthPage() {
     setError("");
 
     try {
+      if (abortRef.current) abortRef.current.abort();
+      abortRef.current = new AbortController();
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         body: JSON.stringify({ name, business_name: businessName, email, password }),
       });
 
@@ -36,7 +40,7 @@ export default function AuthPage() {
       }
 
       const supabase = getBrowserSupabase();
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await (supabase.auth as any).signInWithPassword({ email, password });
 
       if (signInError) {
         setError(signInError.message);
@@ -58,7 +62,7 @@ export default function AuthPage() {
 
     try {
       const supabase = getBrowserSupabase();
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: signInError } = await (supabase.auth as any).signInWithPassword({ email, password });
 
       if (signInError) {
         setError(signInError.message);

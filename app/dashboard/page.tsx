@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -54,6 +54,7 @@ export default function DashboardPage() {
   const [credentials, setCredentials] = useState<Credentials | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -65,7 +66,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const supabase = getBrowserSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    (supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       if (!session) {
         router.push("/auth");
         return;
@@ -74,7 +75,7 @@ export default function DashboardPage() {
       setSessionChecked(true);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = (supabase.auth as any).onAuthStateChange((event: string) => {
       if (event === "SIGNED_OUT") {
         router.push("/auth");
       }
@@ -84,11 +85,14 @@ export default function DashboardPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchAll() {
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
     const headers = { "Authorization": `Bearer ${accessToken}` };
     const [profileRes, credsRes, txRes] = await Promise.all([
-      fetch("/api/profile", { headers }),
-      fetch("/api/settings", { headers }),
-      fetch("/api/transactions", { headers }),
+      fetch("/api/profile", { headers, signal }),
+      fetch("/api/settings", { headers, signal }),
+      fetch("/api/transactions", { headers, signal }),
     ]);
     const profileData = await profileRes.json();
     const credsData = await credsRes.json();
@@ -110,12 +114,15 @@ export default function DashboardPage() {
     if (!sessionChecked) return;
     fetchAll();
     const interval = setInterval(fetchAll, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (abortRef.current) abortRef.current.abort();
+    };
   }, [sessionChecked, accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleLogout() {
     const supabase = getBrowserSupabase();
-    await supabase.auth.signOut();
+    await (supabase.auth as any).signOut();
     router.push("/auth");
   }
 

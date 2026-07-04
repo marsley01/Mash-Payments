@@ -15,6 +15,7 @@ export function useCachedFetch<T>(url: string, ttlMs = 30_000) {
   const [error, setError] = useState<string | null>(null);
   const key = `fetch:${url}`;
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   async function fetchData() {
     const cached = clientCache.get(key);
@@ -24,14 +25,18 @@ export function useCachedFetch<T>(url: string, ttlMs = 30_000) {
       return;
     }
 
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: abortRef.current.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       clientCache.set(key, { data: json, expiry: Date.now() + ttlMs });
       setData(json);
       setError(null);
     } catch (e) {
+      if ((e as Error).name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Fetch failed");
     } finally {
       setLoading(false);
@@ -43,6 +48,7 @@ export function useCachedFetch<T>(url: string, ttlMs = 30_000) {
     intervalRef.current = setInterval(fetchData, ttlMs);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      if (abortRef.current) abortRef.current.abort();
     };
   }, [url, ttlMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
